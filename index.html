@@ -18,6 +18,8 @@
             --input-bg: #ffffff;
             --btn-disabled: #94a3b8;
             --header-bg: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            --skeleton: #e2e8f0;
+            --skeleton-shine: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
         }
 
         [data-theme="dark"] {
@@ -32,6 +34,8 @@
             --input-bg: #1a1b1e;
             --btn-disabled: #475569;
             --header-bg: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+            --skeleton: #2c2e33;
+            --skeleton-shine: linear-gradient(90deg, #2c2e33 25%, #373a40 50%, #2c2e33 75%);
             opacity: 0.95;
         }
 
@@ -41,13 +45,17 @@
         h1 { margin: 0; font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px; display: flex; align-items: center; gap: 0.6rem; background: linear-gradient(to right, #e0f2fe, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .logo-icon { -webkit-text-fill-color: initial; font-size: 1.5rem; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3)); }
         
-        .theme-switch-wrapper { display: flex; align-items: center; }
-        .theme-switch { display: inline-block; height: 28px; position: relative; width: 56px; }
+        .header-controls { display: flex; align-items: center; gap: 1.5rem; }
+        
+        .toggle-switch-wrapper { display: flex; align-items: center; gap: 0.6rem; }
+        .toggle-label { color: #e2e8f0; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.3px; }
+        .theme-switch { display: inline-block; height: 28px; position: relative; width: 56px; flex-shrink: 0; }
         .theme-switch input { display: none; }
         .slider { background-color: #64748b; bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 28px; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; box-sizing: border-box; }
         .slider:before { background-color: #fff; bottom: 4px; content: ""; height: 20px; left: 4px; position: absolute; transition: .4s; width: 20px; border-radius: 50%; z-index: 2; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
         input:checked + .slider { background-color: #1e293b; }
         input:checked + .slider:before { transform: translateX(28px); }
+        input:checked + .slider.url-slider { background-color: #0ea5e9; } 
         .slider .icon { display: flex; align-items: center; justify-content: center; z-index: 1; user-select: none; width: 14px; height: 14px; }
         .slider .icon.sun { color: #facc15; }
         .slider .icon.moon { color: #f8fafc; }
@@ -56,6 +64,17 @@
 
         aside.filters { width: 340px; background-color: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; flex-shrink: 0; box-shadow: inset -2px 0 5px rgba(0,0,0,0.02); }
         
+        .sidebar-top-actions { display: flex; align-items: stretch; gap: 0.5rem; margin-bottom: 0.5rem; }
+        
+        .nav-btn { flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.95rem; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .nav-btn svg { width: 16px; height: 16px; }
+        .nav-btn:hover { background: var(--border); }
+        .nav-btn.active { background: #f43f5e; color: white; border-color: #f43f5e; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        
+        .view-toggle { display: flex; background: var(--card-bg); border-radius: 6px; padding: 2px; border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .view-toggle-btn { background: transparent; border: none; padding: 0.4rem 0.6rem; border-radius: 4px; cursor: pointer; color: var(--btn-disabled); font-size: 0.9rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .view-toggle-btn.active { background: var(--sidebar-bg); color: var(--text); box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
+
         details { background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem; margin-bottom: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         
         summary { display: flex; align-items: center; font-weight: bold; cursor: pointer; padding: 0.5rem; color: var(--accent); user-select: none; font-size: 1.05rem; list-style: none; }
@@ -68,6 +87,9 @@
         [data-theme="dark"] details.sub-details { background: rgba(255,255,255,0.03); box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); }
         details.sub-details summary { font-size: 0.85rem; color: var(--text); opacity: 0.9; padding: 0.2rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: none; margin: 0; }
         details.sub-details[open] > summary { margin-bottom: 0.5rem; border-bottom: none; }
+
+        .sub-reset-btn { margin-left: auto; background: none; border: 1px solid transparent; color: var(--btn-disabled); cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; transition: all 0.2s; }
+        .sub-reset-btn:hover { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
 
         .filter-section { border-left: 3px solid var(--border); padding-left: 1rem; margin-bottom: 1rem; }
         .filter-section h4 { margin: 0 0 0.5rem 0; font-size: 0.9rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; }
@@ -85,9 +107,7 @@
         .autocomplete-item:last-child { border-bottom: none; }
         .autocomplete-item:hover { background-color: var(--sidebar-bg); }
         .ac-count { font-size: 0.8rem; opacity: 0.6; }
-
-        .persist-wrapper { font-size: 0.85rem; color: var(--text); opacity: 0.9; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
-        .persist-wrapper input { width: auto; }
+        .ac-loading-indicator { display: none; position: absolute; right: 10px; top: 32px; font-size: 0.8rem; opacity: 0.5; font-style: italic; pointer-events: none; }
         
         .btn-group { display: flex; gap: 0.5rem; }
         button.primary-btn { flex: 2; padding: 1rem; background-color: var(--btn-bg); color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s, opacity 0.2s; }
@@ -96,38 +116,103 @@
         button.secondary-btn { flex: 1; padding: 1rem; background-color: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
         button.secondary-btn:hover { background-color: var(--border); }
 
-        main.results { flex: 1; padding: 1.5rem; overflow-y: auto; background-color: var(--main-bg); display: flex; flex-direction: column; }
+        main.results { flex: 1; padding: 1.5rem; overflow-y: auto; background-color: var(--main-bg); display: flex; flex-direction: column; position: relative; }
         #statusMessage { font-size: 1.1rem; text-align: center; margin-top: 2rem; opacity: 0.8; }
         
-        .results-header { display: none; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .results-header { display: none; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); flex-shrink: 0; position: relative; min-height: 28px; }
+        .results-header-left { display: flex; align-items: center; gap: 1rem; }
         #totalCount { font-size: 0.95rem; color: var(--text); opacity: 0.8; font-weight: bold; }
-        #shareLink { font-size: 0.85rem; opacity: 0.65; text-decoration: none; cursor: pointer; color: var(--text); transition: opacity 0.2s; }
+        
+        .shortcut-hint { font-size: 0.75rem; color: var(--btn-disabled); background: var(--sidebar-bg); padding: 3px 8px; border-radius: 12px; border: 1px solid var(--border); white-space: nowrap; font-style: italic; }
+        .shortcut-hint i { font-style: italic; font-weight: 600; color: var(--accent); }
+        [data-theme="dark"] .shortcut-hint i { color: #e2e8f0; }
+
+        .stage-toasts { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: row; gap: 0.5rem; z-index: 5; pointer-events: none; }
+        .stage-toast { font-size: 0.8rem; font-weight: 600; padding: 0.35rem 0.8rem; border-radius: 20px; background: var(--card-bg); border: 1px solid var(--border); box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: inline-flex; align-items: center; gap: 0.4rem; opacity: 0; transform: scale(0.9); animation: toastIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, toastOut 0.3s ease forwards 1.8s; max-width: 250px; }
+        .stage-toast .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .stage-toast .toast-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+        @keyframes toastIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        @keyframes toastOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.9); } }
+        
+        #shareLink { font-size: 0.85rem; opacity: 0.65; text-decoration: none; cursor: pointer; color: var(--text); transition: opacity 0.2s; white-space: nowrap; }
         #shareLink:hover { opacity: 1; }
 
         .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-
+        
         .book-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; position: relative; }
         .book-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); border-color: var(--accent); }
         
-        .card-main { display: flex; gap: 1rem; flex: 1; }
-        .cover-container { width: 90px; flex-shrink: 0; display: flex; align-items: flex-start; justify-content: center; }
-        .book-cover { width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); }
-        .no-cover { width: 90px; height: 130px; display: flex; align-items: center; justify-content: center; text-align: center; font-style: italic; font-size: 0.8rem; opacity: 0.6; background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: 4px; }
+        .card-main { display: flex; gap: 1rem; flex: 1; align-items: stretch; }
+        .cover-container { width: 90px; flex-shrink: 0; display: flex; align-items: flex-start; justify-content: center; perspective: 1000px; }
+        .book-cover { width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s; backface-visibility: hidden; }
+        .book-card:hover .book-cover { transform: scale(1.08) rotate(-1deg); box-shadow: 0 12px 20px rgba(0,0,0,0.25); }
+        .no-cover { width: 100%; height: 130px; display: flex; align-items: center; justify-content: center; text-align: center; font-style: italic; font-size: 0.8rem; opacity: 0.6; background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: 4px; }
         
-        .card-details { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
-        .title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
-        .book-title { font-weight: bold; font-size: 1.1rem; color: var(--accent); line-height: 1.2; flex: 1; }
+        .card-details { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
         
-        .aa-btn { background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: 4px; font-size: 1rem; cursor: pointer; padding: 4px 6px; transition: all 0.2s; color: var(--text); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .book-title { font-weight: bold; font-size: 1.1rem; color: var(--accent); line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.64rem; padding-right: 2.5rem; }
+        .book-author { font-size: 0.9rem; opacity: 0.8; margin-bottom: 0.75rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-right: 2.5rem; }
+        .book-author span { cursor: pointer; text-decoration: none; color: inherit; }
+        .book-author span:hover { text-decoration: underline; color: var(--btn-bg); }
+        
+        .action-buttons { position: absolute; top: -0.25rem; right: 0; display: flex; flex-direction: column; gap: 0.4rem; z-index: 2; }
+        .aa-btn, .bookmark-btn { background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: 4px; font-size: 1rem; cursor: pointer; padding: 4px 6px; transition: all 0.2s; color: var(--text); display: flex; align-items: center; justify-content: center; }
         .aa-btn:hover { background: var(--btn-bg); color: white; border-color: var(--btn-bg); }
+        .bookmark-btn:hover { background: #e11d48; color: white; border-color: #e11d48; }
+        .bookmark-btn.bookmarked { background: #f43f5e; color: white; border-color: #f43f5e; }
 
-        .book-author { font-size: 0.9rem; opacity: 0.8; margin-bottom: 0.5rem; }
-        
-        .tags-list { display: flex; flex-wrap: wrap; gap: 0.4rem; pointer-events: none; margin-top: auto; }
-        .tag { font-size: 0.7rem; padding: 3px 6px; border-radius: 12px; font-weight: 500; text-transform: uppercase; border: 1px solid var(--border); white-space: nowrap; background: var(--sidebar-bg); }
+        .tags-list { display: flex; flex-wrap: wrap; gap: 0.4rem; align-content: flex-start; overflow: hidden; max-height: 54px; margin-top: auto; padding-top: 4px; }
+        .tags-list.list-tags { display: none; }
+        .tag { font-size: 0.7rem; padding: 3px 6px; border-radius: 12px; font-weight: 500; text-transform: uppercase; border: 1px solid var(--border); white-space: nowrap; background: var(--sidebar-bg); cursor: pointer; transition: all 0.2s; }
+        .tag:hover { background: var(--accent); color: var(--main-bg); border-color: var(--accent); }
+        .tag-overflow { font-size: 0.7rem; padding: 3px 7px; border-radius: 12px; font-weight: 600; white-space: nowrap; background: var(--btn-bg); color: white; border: none; flex-shrink: 0; cursor: default; }
         
         .book-meta { font-size: 0.85rem; margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.75rem; opacity: 0.9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;}
+        .meta-left { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+        .pub-year { margin-right: 10px; }
         .edition-badge { background: var(--btn-bg); color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+
+        /* LIST VIEW REVISIONS */
+        .book-grid.list-view { grid-template-columns: 1fr; gap: 0.5rem; }
+        .book-grid.list-view .book-card { flex-direction: row; align-items: center; padding: 0.5rem 1rem; gap: 1rem; height: auto; }
+        .book-grid.list-view .book-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.08); }
+        .book-grid.list-view .card-main { flex: 1; display: flex; align-items: center; gap: 1rem; min-width: 0; }
+        .book-grid.list-view .cover-container { width: 45px; height: 65px; margin: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .book-grid.list-view .no-cover { height: 100%; font-size: 0.6rem; padding: 2px; }
+        
+        .book-grid.list-view .card-details { display: grid; grid-template-columns: minmax(120px, 1.25fr) minmax(100px, 1fr) 70px minmax(150px, 1.75fr); gap: 1.5rem; align-items: center; flex: 1; padding: 0; position: static; }
+        
+        .book-grid.list-view .book-title { grid-column: 1; font-size: 0.95rem; margin: 0; white-space: normal; -webkit-line-clamp: 2; padding: 0; min-height: auto; }
+        .book-grid.list-view .book-author { grid-column: 2; font-size: 0.85rem; margin: 0; white-space: normal; -webkit-line-clamp: 2; padding: 0; }
+        .book-grid.list-view .action-buttons { grid-column: 3; position: static; flex-direction: row; justify-content: center; }
+        
+        .book-grid.list-view .tags-list.grid-tags { display: none; }
+        .book-grid.list-view .tags-list.list-tags { grid-column: 4; display: flex; flex-wrap: nowrap; overflow: hidden; align-items: center; margin: 0; padding: 0; }
+        
+        .book-grid.list-view .book-meta { flex: 0 0 130px; border: none; margin: 0; padding: 0; flex-direction: column; align-items: flex-end; justify-content: center; gap: 4px; }
+        .book-grid.list-view .meta-left { flex-direction: column; align-items: flex-end; gap: 4px; }
+        .book-grid.list-view .pub-year { margin-right: 0; }
+
+        /* Skeleton System */
+        .skeleton-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; height: 180px; position: relative; pointer-events: none; }
+        .skeleton-anim { background: var(--skeleton-shine); background-size: 200% 100%; animation: shine 1.5s infinite; background-color: var(--skeleton); border-radius: 4px; }
+        .skeleton-cover { width: 90px; height: 125px; }
+        .skeleton-title { width: 65%; height: 20px; margin-bottom: 8px; }
+        .skeleton-author { width: 40%; height: 14px; margin-bottom: 15px; }
+        .skeleton-tag { width: 50px; height: 16px; border-radius: 12px; display: inline-block; margin-right: 5px; }
+        .skeleton-meta { width: 100%; height: 16px; margin-top: auto; border-top: 1px solid var(--border); padding-top: 10px; }
+        
+        @keyframes shine { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* List View Skeletons */
+        .book-grid.list-view .skeleton-card { flex-direction: row; height: auto; align-items: center; padding: 0.5rem 1rem; gap: 1rem; }
+        .book-grid.list-view .skeleton-card .card-main { display: flex; flex: 1; align-items: center; gap: 1rem; }
+        .book-grid.list-view .skeleton-card .skeleton-cover { width: 45px; height: 65px; margin: 0; }
+        .book-grid.list-view .skeleton-card .card-details { display: grid; grid-template-columns: minmax(120px, 1.25fr) minmax(100px, 1fr) 70px minmax(150px, 1.75fr); gap: 1.5rem; align-items: center; flex: 1; }
+        .book-grid.list-view .skeleton-card .skeleton-title { grid-column: 1; width: 80%; margin: 0; }
+        .book-grid.list-view .skeleton-card .skeleton-author { grid-column: 2; width: 70%; margin: 0; }
+        .book-grid.list-view .skeleton-card .skeleton-tag { display: none; }
+        .book-grid.list-view .skeleton-card .skeleton-meta { flex: 0 0 130px; border: none; padding: 0; width: 100px; margin: 0; }
 
         .results-footer { text-align: center; border-top: 1px solid var(--border); padding-top: 1.5rem; margin-top: auto; display: none; }
         .hidden-message { font-size: 0.95rem; color: #64748b; margin-bottom: 1rem; font-style: italic; }
@@ -143,43 +228,66 @@
 
     <header>
         <h1><span class="logo-icon">📚</span> Deep Book Explorer</h1>
-        <div class="theme-switch-wrapper">
-            <label class="theme-switch" for="checkbox">
-                <input type="checkbox" id="checkbox" />
-                <div class="slider">
-                    <span class="icon sun">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-                    </span>
-                    <span class="icon moon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                    </span>
-                </div>
-            </label>
+        <div class="header-controls">
+            <div class="toggle-switch-wrapper" title="Enable URL State Persistence">
+                <span class="toggle-label">URL Sync</span>
+                <label class="theme-switch" for="persistToggle">
+                    <input type="checkbox" id="persistToggle">
+                    <div class="slider url-slider"></div>
+                </label>
+            </div>
+            <div class="toggle-switch-wrapper" style="margin-left: 10px;">
+                <label class="theme-switch" for="checkbox">
+                    <input type="checkbox" id="checkbox" />
+                    <div class="slider">
+                        <span class="icon sun">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                        </span>
+                        <span class="icon moon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                        </span>
+                    </div>
+                </label>
+            </div>
         </div>
     </header>
 
     <div class="app-container">
-        <aside class="filters">
+        <aside class="filters" id="sidebarContainer">
+            
+            <div class="sidebar-top-actions">
+                <button id="viewSavedBtn" class="nav-btn" title="Toggle Saved Bookmarks">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                    Saved (<span id="savedCount">0</span>)
+                </button>
+                <div class="view-toggle">
+                    <button id="gridToggle" class="view-toggle-btn active" title="Grid View">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    </button>
+                    <button id="listToggle" class="view-toggle-btn" title="Compact List View">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    </button>
+                </div>
+            </div>
 
             <div class="btn-group">
                 <button id="resetBtn" class="secondary-btn">Reset</button>
                 <button id="searchBtn" class="primary-btn" disabled>Find Books</button>
-            </div>
-
-            <div class="persist-wrapper">
-                <input type="checkbox" id="persistToggle">
-                <label for="persistToggle">Enable URL State Persistence</label>
             </div>
             
             <details open>
                 <summary>Filtering Options</summary>
                 
                 <details class="sub-details" open>
-                    <summary>Include</summary>
+                    <summary>
+                        <span>Include</span>
+                        <button class="sub-reset-btn" data-target="include" title="Clear Include filters">✕</button>
+                    </summary>
                     <div class="filter-content" style="margin-top: 0.5rem;">
                         <div class="autocomplete-wrapper">
                             <label>Subject (comma separated)</label>
                             <input type="text" id="incSubject" class="watch-input" placeholder="e.g., Fantasy, Magic" autocomplete="off">
+                            <span id="incSubjectLoading" class="ac-loading-indicator">waking up...</span>
                             <ul id="incSubjectList" class="autocomplete-list"></ul>
                         </div>
                         <div>
@@ -211,11 +319,15 @@
                 </details>
 
                 <details class="sub-details">
-                    <summary>Exclude</summary>
+                    <summary>
+                        <span>Exclude</span>
+                        <button class="sub-reset-btn" data-target="exclude" title="Clear Exclude filters">✕</button>
+                    </summary>
                     <div class="filter-content" style="margin-top: 0.5rem;">
                         <div class="autocomplete-wrapper">
                             <label>Subject (comma separated)</label>
                             <input type="text" id="excSubject" class="watch-input" placeholder="e.g., Romance" autocomplete="off">
+                            <span id="excSubjectLoading" class="ac-loading-indicator">waking up...</span>
                             <ul id="excSubjectList" class="autocomplete-list"></ul>
                         </div>
                         <div>
@@ -239,7 +351,10 @@
                 </details>
 
                 <details class="sub-details" open>
-                    <summary>Release & Metrics</summary>
+                    <summary>
+                        <span>Release & Metrics</span>
+                        <button class="sub-reset-btn" data-target="metrics" title="Clear Release & Metrics filters">✕</button>
+                    </summary>
                     <div class="filter-content" style="margin-top: 0.5rem;">
                         <div class="grid-2">
                             <div>
@@ -267,9 +382,9 @@
 
             <details open>
                 <summary>Sorting</summary>
-                <div class="filter-content">
+                <div class="filter-content" style="padding-top: 0.25rem;">
                     <label style="margin-bottom: 0;">Sort By</label>
-                    <select id="sortSelect" class="watch-input" style="margin-top: 0.4rem;">
+                    <select id="sortSelect" class="watch-input">
                         <option value="relevance" selected>Relevance (Default)</option>
                         <option value="rating">Highest Rating*</option>
                         <option value="reviews">Most Reviewed*</option>
@@ -288,13 +403,17 @@
 
         <main class="results">
             <div id="resultsHeader" class="results-header">
-                <span id="totalCount"></span>
+                <div class="results-header-left">
+                    <span id="totalCount"></span>
+                    <span class="shortcut-hint"><i>Shift+Click</i>: Include &nbsp;|&nbsp; <i>Ctrl+Click</i>: Exclude</span>
+                </div>
+                <div id="stageToasts" class="stage-toasts"></div>
                 <a id="shareLink" href="#" title="Encode current filters into the URL for sharing">🔗 Copy link</a>
             </div>
             
             <div id="statusMessage">Please enter at least one filter to begin.</div>
             
-            <div id="bookGrid" class="book-grid" style="display: none;"></div>
+            <div id="bookGrid" class="book-grid"></div>
             
             <div id="resultsFooter" class="results-footer">
                 <div id="hiddenMessage" class="hidden-message" style="display: none;"></div>
@@ -343,6 +462,7 @@
             grid: document.getElementById('bookGrid'), status: document.getElementById('statusMessage'),
             footer: document.getElementById('resultsFooter'), hiddenMsg: document.getElementById('hiddenMessage'),
             resultsHeader: document.getElementById('resultsHeader'), totalCount: document.getElementById('totalCount'),
+            stageToasts: document.getElementById('stageToasts'),
             shareLink: document.getElementById('shareLink'), persistToggle: document.getElementById('persistToggle'),
             incSub: document.getElementById('incSubject'), incLang: document.getElementById('incLang'), 
             incTitle: document.getElementById('incTitle'), incAuthor: document.getElementById('incAuthor'),
@@ -351,7 +471,9 @@
             excPlace: document.getElementById('excPlace'), excPerson: document.getElementById('excPerson'), 
             minY: document.getElementById('minYear'), maxY: document.getElementById('maxYear'),
             minStarRating: document.getElementById('minStarRating'), minRatings: document.getElementById('minRatings'),
-            sort: document.getElementById('sortSelect'), sortNote: document.getElementById('sortNote')
+            sort: document.getElementById('sortSelect'), sortNote: document.getElementById('sortNote'),
+            viewSavedBtn: document.getElementById('viewSavedBtn'), savedCount: document.getElementById('savedCount'), 
+            gridToggle: document.getElementById('gridToggle'), listToggle: document.getElementById('listToggle')
         };
 
         const watchInputs = document.querySelectorAll('.watch-input');
@@ -362,8 +484,26 @@
         let activeMinRCount = 0;
         let activeSort = 'relevance'; 
         let allDisplayedDocs = [];
+        let currentViewMode = 'search'; 
+        let lastSearchTotalFound = 0; 
 
-        document.querySelector('.theme-switch input[type="checkbox"]').addEventListener('change', (e) => {
+        let savedBookmarks = JSON.parse(localStorage.getItem('deb_bookmarks') || '[]');
+        const updateSavedBadge = () => { DOM.savedCount.textContent = savedBookmarks.length; };
+        updateSavedBadge();
+
+        const toggleBookmark = (bookData) => {
+            const idx = savedBookmarks.findIndex(b => b.key === bookData.key);
+            if (idx > -1) {
+                savedBookmarks.splice(idx, 1);
+            } else {
+                savedBookmarks.push(bookData);
+            }
+            localStorage.setItem('deb_bookmarks', JSON.stringify(savedBookmarks));
+            updateSavedBadge();
+            if (currentViewMode === 'saved') renderSavedCollection();
+        };
+
+        document.querySelector('.theme-switch input[id="checkbox"]').addEventListener('change', (e) => {
             document.body.setAttribute('data-theme', e.target.checked ? 'dark' : 'light');
         });
 
@@ -377,7 +517,7 @@
                 if (el && el.value.trim()) state[id] = el.value.trim();
             });
             if (DOM.sort.value !== 'relevance') state.sort = DOM.sort.value;
-            window.location.hash = encodeURIComponent(JSON.stringify(state));
+            history.replaceState(null, '', window.location.pathname + window.location.search + '#' + encodeURIComponent(JSON.stringify(state)));
         };
 
         const loadStateFromHash = () => {
@@ -415,17 +555,32 @@
         });
 
         const checkInputs = () => {
+            if (currentViewMode === 'saved') { DOM.btn.disabled = true; return; }
             const textInputs = Array.from(watchInputs).filter(el => el.tagName === 'INPUT');
             const hasValue = textInputs.some(input => input.value.trim() !== '');
             DOM.btn.disabled = !hasValue;
             
             if (hasValue && DOM.status.textContent === 'Please enter at least one filter to begin.') {
                 DOM.status.textContent = 'Filters configured. Click Find Books to begin.';
-            } else if (!hasValue && DOM.grid.style.display !== 'grid') {
+            } else if (!hasValue && DOM.grid.children.length === 0) {
                 DOM.status.textContent = 'Please enter at least one filter to begin.';
                 DOM.status.style.display = 'block';
             }
         };
+
+        const appendKeyboardListeners = () => {
+            document.querySelectorAll('input, select').forEach(element => {
+                element.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        if (!DOM.btn.disabled && currentViewMode === 'search') {
+                            performSearch(false);
+                        }
+                    }
+                });
+            });
+        };
+        appendKeyboardListeners();
 
         watchInputs.forEach(input => {
             input.addEventListener('input', checkInputs);
@@ -437,46 +592,89 @@
             DOM.sortNote.style.display = (v === 'rating' || v === 'reviews') ? 'block' : 'none';
         });
 
+        document.querySelectorAll('.sub-reset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault(); 
+                e.stopPropagation();
+                const target = btn.getAttribute('data-target');
+                if (target === 'include') {
+                    ['incSubject', 'incLang', 'incTitle', 'incAuthor', 'incPlace', 'incPerson'].forEach(id => document.getElementById(id).value = '');
+                } else if (target === 'exclude') {
+                    ['excSubject', 'excLang', 'excPlace', 'excPerson'].forEach(id => document.getElementById(id).value = '');
+                } else if (target === 'metrics') {
+                    ['minYear', 'maxYear', 'minStarRating', 'minRatings'].forEach(id => document.getElementById(id).value = '');
+                }
+                checkInputs();
+                if(DOM.persistToggle.checked) saveStateToHash();
+            });
+        });
+
         DOM.resetBtn.addEventListener('click', () => {
             watchInputs.forEach(input => { if(input.tagName === 'INPUT') input.value = ''; });
             DOM.sort.value = 'relevance';
             DOM.sortNote.style.display = 'none';
             DOM.grid.innerHTML = '';
-            DOM.grid.style.display = 'none';
             DOM.footer.style.display = 'none';
             DOM.resultsHeader.style.display = 'none';
             allDisplayedDocs = [];
+            lastSearchTotalFound = 0;
             currentPage = 1;
             if (DOM.persistToggle.checked) history.replaceState(null, '', window.location.pathname + window.location.search);
             checkInputs();
         });
 
-        const setupAutocomplete = (inputId, listId) => {
+        const setupAutocomplete = (inputId, listId, indicatorId) => {
             const input = document.getElementById(inputId);
             const list = document.getElementById(listId);
+            const indicator = document.getElementById(indicatorId);
             let timeout = null;
+            let isFocused = false;
+
+            input.addEventListener('focus', () => { isFocused = true; });
+            input.addEventListener('blur', () => { 
+                isFocused = false;
+                setTimeout(() => { list.style.display = 'none'; indicator.style.display = 'none'; }, 250);
+            });
 
             input.addEventListener('input', (e) => {
                 clearTimeout(timeout);
                 const parts = e.target.value.split(',');
                 const query = parts[parts.length - 1].trim();
                 
-                if (query.length < 2) { list.style.display = 'none'; return; }
+                if (query.length < 2) { list.style.display = 'none'; indicator.style.display = 'none'; return; }
+
+                indicator.style.display = 'inline-block';
 
                 timeout = setTimeout(async () => {
+                    if (!isFocused) return;
                     try {
-                        const res = await fetch(`https://openlibrary.org/search/subjects.json?q=${encodeURIComponent(query + '*')}&limit=100`);
-                        if (!res.ok) throw new Error();
-                        const data = await res.json();
+                        const [resExact, resWild] = await Promise.all([
+                            fetch(`https://openlibrary.org/search/subjects.json?q=${encodeURIComponent(query)}&limit=10`),
+                            fetch(`https://openlibrary.org/search/subjects.json?q=${encodeURIComponent(query + '*')}&limit=10`)
+                        ]);
+                        
+                        if (!resExact.ok || !resWild.ok) throw new Error();
+                        const dataExact = await resExact.json();
+                        const dataWild = await resWild.json();
+                        
+                        const mergedMap = new Map();
+                        [...(dataExact.docs || []), ...(dataWild.docs || [])].forEach(d => {
+                            if (!mergedMap.has(d.name.toLowerCase())) mergedMap.set(d.name.toLowerCase(), d);
+                        });
+                        
+                        let docs = Array.from(mergedMap.values()).sort((a, b) => b.work_count - a.work_count).slice(0, 10);
                         
                         list.innerHTML = '';
-                        if (data.docs && data.docs.length > 0) {
-                            const sortedDocs = data.docs.sort((a, b) => b.work_count - a.work_count).slice(0, 10);
-                            sortedDocs.forEach(subj => {
+                        indicator.style.display = 'none';
+
+                        if (docs.length > 0 && isFocused) {
+                            docs.forEach(subj => {
                                 const li = document.createElement('li');
                                 li.className = 'autocomplete-item';
-                                li.innerHTML = `<span>${escapeHTML(subj.name)}</span> <span class="ac-count">(${subj.work_count})</span>`;
-                                li.addEventListener('click', () => {
+                                const countText = `(${subj.work_count})`;
+                                li.innerHTML = `<span>${escapeHTML(subj.name)}</span> <span class="ac-count">${countText}</span>`;
+                                li.addEventListener('mousedown', (evt) => {
+                                    evt.preventDefault();
                                     parts[parts.length - 1] = ' ' + subj.name;
                                     input.value = parts.join(',').trim().replace(/^,/, '') + ', ';
                                     input.focus();
@@ -487,17 +685,56 @@
                             });
                             list.style.display = 'block';
                         } else { list.style.display = 'none'; }
-                    } catch { list.style.display = 'none'; }
-                }, 150); 
-            });
-
-            document.addEventListener('click', (e) => {
-                if (!input.contains(e.target) && !list.contains(e.target)) list.style.display = 'none';
+                    } catch { list.style.display = 'none'; indicator.style.display = 'none'; }
+                }, 300); 
             });
         };
 
-        setupAutocomplete('incSubject', 'incSubjectList');
-        setupAutocomplete('excSubject', 'excSubjectList');
+        setupAutocomplete('incSubject', 'incSubjectList', 'incSubjectLoading');
+        setupAutocomplete('excSubject', 'excSubjectList', 'excSubjectLoading');
+
+        const modifyTagFilter = (tagValue, targetInput) => {
+            let currentTokens = targetInput.value.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            let incomingTokens = tagValue.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            
+            let added = false;
+            
+            incomingTokens.forEach(token => {
+                const index = currentTokens.findIndex(t => t.toLowerCase() === token.toLowerCase());
+                if (index > -1) {
+                    currentTokens.splice(index, 1);
+                } else {
+                    currentTokens.push(token);
+                    added = true; 
+                }
+            });
+            
+            targetInput.value = currentTokens.join(', ') + (currentTokens.length > 0 ? ', ' : '');
+            checkInputs();
+            DOM.status.style.display = 'none';
+            return added; 
+        };
+
+        const showStageToast = (mode, tagText, added) => {
+            const toast = document.createElement('div');
+            toast.className = `stage-toast`;
+            const actionLabel = added ? 'Added to' : 'Removed from';
+            const modeLabel = mode === 'include' ? 'Include' : 'Exclude';
+            const dotColor = added ? (mode === 'include' ? '#16a34a' : '#dc2626') : '#94a3b8';
+            
+            toast.innerHTML = `<span class="dot" style="background: ${dotColor};"></span><span class="toast-text">${actionLabel} ${modeLabel}: ${escapeHTML(tagText)}</span>`;
+            
+            toast.addEventListener('animationend', (e) => {
+                if (e.animationName === 'toastOut') toast.remove();
+            });
+
+            DOM.stageToasts.appendChild(toast);
+
+            const all = DOM.stageToasts.children;
+            while (all.length > 2) {
+                DOM.stageToasts.removeChild(all[0]);
+            }
+        };
 
         const processTags = (inputValue, prefix, qArray, isLanguage = false) => {
             if(!inputValue.trim()) return;
@@ -505,18 +742,51 @@
             tags.forEach(t => {
                 let finalTag = t;
                 if (isLanguage) finalTag = langMapToOL[t.toLowerCase()] || t;
-                qArray.push(`${prefix}:"${finalTag}"`);
+                
+                if (prefix.startsWith('-')) {
+                    qArray.push(`NOT ${prefix.slice(1)}:"${finalTag}"`);
+                } else {
+                    qArray.push(`${prefix}:"${finalTag}"`);
+                }
             });
         };
 
+        const injectSkeletonScreen = () => {
+            DOM.grid.innerHTML = '';
+            DOM.status.style.display = 'none';
+            DOM.grid.style.display = 'grid';
+            
+            const skeletonsCount = DOM.grid.classList.contains('list-view') ? 10 : 8;
+            for (let i = 0; i < skeletonsCount; i++) {
+                const s = document.createElement('div');
+                s.className = 'skeleton-card';
+                s.innerHTML = `
+                    <div class="card-main">
+                        <div class="skeleton-cover skeleton-anim"></div>
+                        <div class="card-details" style="width:100%;">
+                            <div class="skeleton-title skeleton-anim"></div>
+                            <div class="skeleton-author skeleton-anim"></div>
+                            <div>
+                                <div class="skeleton-tag skeleton-anim"></div>
+                                <div class="skeleton-tag skeleton-anim"></div>
+                                <div class="skeleton-tag skeleton-anim"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="skeleton-meta skeleton-anim"></div>
+                `;
+                DOM.grid.appendChild(s);
+            }
+        };
+
         const performSearch = async (isLoadMore = false) => {
+            if (currentViewMode === 'saved') return;
             if (!isLoadMore) {
                 currentPage = 1;
                 currentTotalHidden = 0;
                 allDisplayedDocs = [];
                 activeSort = DOM.sort.value; 
 
-                DOM.grid.innerHTML = '';
                 DOM.footer.style.display = 'none';
                 DOM.resultsHeader.style.display = 'none';
                 
@@ -525,10 +795,11 @@
                 processTags(DOM.incPlace.value, 'place', qParts);
                 processTags(DOM.incPerson.value, 'person', qParts);
                 processTags(DOM.incLang.value, 'language', qParts, true); 
-                processTags(DOM.excSub.value, 'not subject', qParts);
-                processTags(DOM.excPlace.value, 'not place', qParts);
-                processTags(DOM.excPerson.value, 'not person', qParts);
-                processTags(DOM.excLang.value, 'not language', qParts, true);
+                
+                processTags(DOM.excSub.value, '-subject', qParts);
+                processTags(DOM.excPlace.value, '-place', qParts);
+                processTags(DOM.excPerson.value, '-person', qParts);
+                processTags(DOM.excLang.value, '-language', qParts, true);
 
                 if (DOM.incTitle.value.trim()) qParts.push(`title:"${DOM.incTitle.value.trim()}"`);
                 if (DOM.incAuthor.value.trim()) qParts.push(`author:"${DOM.incAuthor.value.trim()}"`);
@@ -559,23 +830,21 @@
             }
 
             activeQueryParams.set('page', currentPage);
+            injectSkeletonScreen();
 
-            DOM.status.style.display = 'block';
             if (isLoadMore) {
                 DOM.loadMoreBtn.disabled = true;
                 DOM.loadMoreBtn.textContent = 'Loading...';
-                DOM.status.textContent = 'Fetching next batch...';
             } else {
                 DOM.btn.disabled = true;
                 DOM.btn.textContent = 'Searching...';
-                DOM.grid.style.display = 'none';
-                DOM.status.textContent = 'Querying Open Library. This may take a few seconds...';
             }
 
             try {
                 const response = await fetch(`${API_BASE}?${activeQueryParams.toString()}`);
                 if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
                 const data = await response.json();
+                lastSearchTotalFound = data.numFound || 0;
                 
                 const docs = data.docs || [];
                 const filteredDocs = docs.filter(b => {
@@ -600,9 +869,10 @@
                     allDisplayedDocs.sort((a, b) => (b.ratings_count || 0) - (a.ratings_count || 0));
                 }
 
-                renderResults(docs.length, data.numFound || 0, isLoadMore, hiddenInBatch, newStartIdx, needsFullRerender);
+                renderResults(docs.length, lastSearchTotalFound, isLoadMore, hiddenInBatch, newStartIdx, needsFullRerender);
                 
             } catch (error) {
+                DOM.grid.innerHTML = '';
                 DOM.status.innerHTML = `<strong>Error:</strong> API request failed.<br><small>${error.message}</small>`;
                 DOM.status.style.display = 'block';
                 checkInputs();
@@ -612,18 +882,41 @@
             }
         };
 
+        const renderTagsHTML = (subjects, maxChars) => {
+            if (!subjects || subjects.length === 0) return '';
+            let visible = [];
+            let extraTags = [];
+            let currentChars = 0;
+
+            for (let i = 0; i < subjects.length; i++) {
+                let s = subjects[i];
+                if (s.length > 26) { extraTags.push(s); continue; } 
+                
+                if (currentChars + s.length + 15 <= maxChars || visible.length === 0) {
+                    visible.push(s);
+                    currentChars += s.length + 15;
+                } else {
+                    extraTags.push(s);
+                }
+            }
+            
+            const tagHtml = visible.map(s => `<span class="tag" title="${escapeHTML(s)}">${escapeHTML(s)}</span>`).join('');
+            const overflowHtml = extraTags.length > 0 ? `<span class="tag-overflow" title="${escapeHTML(extraTags.join(', '))} ">+${extraTags.length}</span>` : '';
+            return tagHtml + overflowHtml;
+        };
+
         const buildCard = (b, isEditionsSort, aaLangParam) => {
             const card = document.createElement('div');
             card.className = 'book-card';
-            card.title = "Click anywhere on the card to open in Open Library";
             
-            card.addEventListener('click', () => {
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('.tag') || e.target.closest('.action-buttons') || e.target.closest('.book-author span')) return;
                 const urlPath = b.cover_edition_key ? `/books/${b.cover_edition_key}` : b.key;
                 window.open(`https://openlibrary.org${urlPath}`, '_blank', 'noopener,noreferrer');
             });
             
             const cover = b.cover_i 
-                ? `<img src="https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg" class="book-cover">` 
+                ? `<img src="https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg" class="book-cover" alt="Cover Image">` 
                 : `<div class="no-cover">No Cover</div>`;
 
             const author = b.author_name ? b.author_name[0] : 'Unknown Author';
@@ -632,36 +925,75 @@
             const ratingCount = b.ratings_count ? `(${b.ratings_count})` : '';
             const ratingDisplay = b.ratings_average ? `★ ${parseFloat(b.ratings_average).toFixed(1)} ${ratingCount}` : 'No rating';
             const editionBadge = (isEditionsSort && b.edition_count) ? `<span class="edition-badge">${b.edition_count} Editions</span>` : '';
+            const isBookmarked = savedBookmarks.some(saved => saved.key === b.key);
+
+            const heartSVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isBookmarked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
 
             card.innerHTML = `
                 <div class="card-main">
                     <div class="cover-container">${cover}</div>
                     <div class="card-details">
-                        <div class="title-row">
-                            <div class="book-title">${escapeHTML(b.title)}</div>
-                            <button class="aa-btn" title="Search EPUB on Anna's Archive">🔍</button>
+                        <div class="book-title" title="${escapeHTML(b.title)}">${escapeHTML(b.title)}</div>
+                        <div class="book-author">by <span title="Search other books by ${escapeHTML(author)}">${escapeHTML(author)}</span></div>
+                        <div class="action-buttons">
+                            <button class="bookmark-btn ${isBookmarked ? 'bookmarked' : ''}" title="${isBookmarked ? 'Remove from Bookmarks' : 'Save to Bookmarks'}">${heartSVG}</button>
+                            <button class="aa-btn" title="Search EPUB mirror archives on Anna's Archive">🔍</button>
                         </div>
-                        <div class="book-author">by ${escapeHTML(author)}</div>
-                        <div class="tags-list">
-                            ${(b.subject || []).slice(0,3).map(s => `<span class="tag">${escapeHTML(s)}</span>`).join('')}
-                        </div>
+                        <div class="tags-list grid-tags">${renderTagsHTML(b.subject, 90)}</div>
+                        <div class="tags-list list-tags">${renderTagsHTML(b.subject, 65)}</div>
                     </div>
                 </div>
                 <div class="book-meta">
-                    <div>
-                        <span style="margin-right: 10px;">Published: ${escapeHTML(year.toString())}</span>
+                    <div class="meta-left">
+                        <span class="pub-year">Published: ${escapeHTML(year.toString())}</span>
                         ${editionBadge}
                     </div>
                     <strong>${ratingDisplay}</strong>
                 </div>
             `;
             
+            const authorSpan = card.querySelector('.book-author span');
+            authorSpan.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (author !== 'Unknown Author') {
+                    window.open(`https://openlibrary.org/search?author=${encodeURIComponent(author)}`, '_blank', 'noopener,noreferrer');
+                }
+            });
+
+            card.querySelectorAll('.tag').forEach(tagElement => {
+                tagElement.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const value = tagElement.textContent;
+                    if (e.shiftKey) {
+                        const wasAdded = modifyTagFilter(value, DOM.incSub);
+                        showStageToast('include', value, wasAdded);
+                    } else if (e.ctrlKey || e.metaKey) {
+                        const wasAdded = modifyTagFilter(value, DOM.excSub);
+                        showStageToast('exclude', value, wasAdded);
+                    } else {
+                        if(currentViewMode === 'saved') DOM.viewSavedBtn.click();
+                        DOM.resetBtn.click();
+                        DOM.incSub.value = value + ', ';
+                        checkInputs();
+                        performSearch(false);
+                    }
+                });
+            });
+
             const aaBtn = card.querySelector('.aa-btn');
             aaBtn.addEventListener('click', (e) => {
                 e.stopPropagation(); 
                 const aaQuery = encodeURIComponent(`${b.title} ${author !== 'Unknown Author' ? 'by ' + author : ''}`);
                 const aaUrl = `${ANNA_ARCHIVE_URL}/search?index=&page=1&sort=&ext=epub&lang=${aaLangParam}&display=&q=${aaQuery}`;
                 window.open(aaUrl, '_blank', 'noopener,noreferrer');
+            });
+
+            const bookmarkBtn = card.querySelector('.bookmark-btn');
+            bookmarkBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleBookmark(b);
+                const isNowBookmarked = bookmarkBtn.classList.toggle('bookmarked');
+                bookmarkBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isNowBookmarked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
             });
 
             return card;
@@ -675,6 +1007,7 @@
             DOM.status.style.display = 'none';
 
             if (!isLoadMore && rawFetchedCount === 0) {
+                DOM.grid.innerHTML = '';
                 DOM.status.textContent = 'No results found on Open Library for that exact combination.';
                 DOM.status.style.display = 'block';
                 return;
@@ -695,6 +1028,9 @@
                     DOM.grid.appendChild(buildCard(b, isEditionsSort, aaLangParam));
                 });
             } else {
+                const activeSkeletons = DOM.grid.querySelectorAll('.skeleton-card');
+                activeSkeletons.forEach(skel => skel.remove());
+
                 allDisplayedDocs.slice(newStartIdx).forEach(b => {
                     DOM.grid.appendChild(buildCard(b, isEditionsSort, aaLangParam));
                 });
@@ -721,15 +1057,64 @@
             }
         };
 
+        const renderSavedCollection = () => {
+            DOM.grid.innerHTML = '';
+            DOM.footer.style.display = 'none';
+            if (savedBookmarks.length === 0) {
+                DOM.status.textContent = 'Your Saved Collection is currently empty. Bookmark books from search queries to populate this list.';
+                DOM.status.style.display = 'block';
+                DOM.resultsHeader.style.display = 'none';
+            } else {
+                DOM.status.style.display = 'none';
+                DOM.totalCount.textContent = `Displaying ${savedBookmarks.length} saved bookmarks`;
+                DOM.resultsHeader.style.display = 'flex';
+                DOM.grid.style.display = 'grid';
+                savedBookmarks.forEach(b => {
+                    DOM.grid.appendChild(buildCard(b, false, 'en'));
+                });
+            }
+        };
+
+        DOM.viewSavedBtn.addEventListener('click', () => {
+            if (currentViewMode === 'search') {
+                currentViewMode = 'saved';
+                DOM.viewSavedBtn.classList.add('active');
+                renderSavedCollection();
+            } else {
+                currentViewMode = 'search';
+                DOM.viewSavedBtn.classList.remove('active');
+                DOM.grid.innerHTML = '';
+                checkInputs();
+                if (allDisplayedDocs.length > 0) {
+                    renderResults(allDisplayedDocs.length, lastSearchTotalFound, false, 0, 0, false);
+                } else {
+                    DOM.resultsHeader.style.display = 'none';
+                    if(!DOM.btn.disabled) DOM.status.style.display = 'block';
+                }
+            }
+        });
+
+        DOM.gridToggle.addEventListener('click', () => {
+            DOM.gridToggle.classList.add('active');
+            DOM.listToggle.classList.remove('active');
+            DOM.grid.classList.remove('list-view');
+        });
+
+        DOM.listToggle.addEventListener('click', () => {
+            DOM.listToggle.classList.add('active');
+            DOM.gridToggle.classList.remove('active');
+            DOM.grid.classList.add('list-view');
+        });
+
+        DOM.btn.addEventListener('click', () => performSearch(false));
+        DOM.loadMoreBtn.addEventListener('click', () => performSearch(true));
+
         if (loadStateFromHash()) {
             DOM.persistToggle.checked = true;
             const v = DOM.sort.value;
             DOM.sortNote.style.display = (v === 'rating' || v === 'reviews') ? 'block' : 'none';
             checkInputs();
         }
-
-        DOM.btn.addEventListener('click', () => performSearch(false));
-        DOM.loadMoreBtn.addEventListener('click', () => performSearch(true));
     </script>
 </body>
 </html>
