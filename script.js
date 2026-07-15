@@ -1012,7 +1012,7 @@ const renderDiscoverDashboard = async () => {
         </div>
         
         <div>
-            <h3 class="discover-section-title">Trending Books</h3>
+            <h3 class="discover-section-title">Popular Books</h3>
             <div id="featuredClassicsGrid" class="book-grid">
                 <!-- Skeletons will show here first -->
             </div>
@@ -1060,7 +1060,7 @@ const renderDiscoverDashboard = async () => {
         featuredGrid.innerHTML = '';
         
         if (docs.length === 0) {
-            featuredGrid.innerHTML = '<div style="opacity: 0.6; font-style: italic; padding: 1rem 0;">No trending books available at the moment.</div>';
+            featuredGrid.innerHTML = '<div style="opacity: 0.6; font-style: italic; padding: 1rem 0;">No Popular Books available at the moment.</div>';
             return;
         }
         
@@ -1074,7 +1074,7 @@ const renderDiscoverDashboard = async () => {
         // Background sync trending titles if needed
         syncCardTitles(docs.slice(0, 8));
     } catch {
-        featuredGrid.innerHTML = '<div style="opacity: 0.6; font-style: italic; padding: 1rem 0;">Failed to load trending books. Check your connection.</div>';
+        featuredGrid.innerHTML = '<div style="opacity: 0.6; font-style: italic; padding: 1rem 0;">Failed to load Popular Books. Check your connection.</div>';
     }
 };
 
