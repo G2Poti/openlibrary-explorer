@@ -1364,6 +1364,13 @@ main.results {
     transform: none !important;
 }
 
+/* The dashboard tabs belong exclusively to the Home/Discover screen. This
+   guards against stale controls when another navigation path hides the
+   dashboard without rebuilding the results header. */
+main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardToggles {
+    display: none !important;
+}
+
 #totalCount {
     font-size: 0.95rem;
     color: var(--text);
@@ -2781,4 +2788,587 @@ input[type=number] {
 
 [data-theme="dark"] .error-details {
     background: rgba(255, 255, 255, 0.04);
+}
+
+/* ==========================================================================
+   MOBILE-ONLY RESPONSIVE OVERRIDES (≤768px and ≤480px)
+   ========================================================================== */
+
+/* Desktop Only Guard (≥769px) - Zero impact on desktop view */
+@media (min-width: 769px) {
+
+    #mobileSettingsBtn,
+    .mobile-sidebar-backdrop {
+        display: none !important;
+    }
+}
+
+/* Dual Icon styling for List/Grid View Switcher */
+.theme-switch .slider .icon.grid-icon {
+    color: #cbd5e1;
+}
+
+.theme-switch .slider .icon.list-icon {
+    color: #94a3b8;
+}
+
+input:checked+.slider.url-slider .icon.grid-icon {
+    color: #94a3b8;
+}
+
+input:checked+.slider.url-slider .icon.list-icon {
+    color: #ffffff;
+}
+
+/* Tablet & Mobile Breakpoint (≤768px) */
+@media (max-width: 768px) {
+
+    /* ── 1. Header — single row, two-zone layout ──────────────── */
+    header {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        height: 48px !important;
+        position: sticky;
+        top: 0;
+        z-index: 200;
+    }
+
+    /* Left zone: 42px — logo only, aligns above sidebar toggle */
+    .brand {
+        width: 42px !important;
+        min-width: 42px !important;
+        height: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+        flex-direction: row !important;
+    }
+
+    /* Hide brand text, keep only 📚 emoji */
+    .brand h1 {
+        font-size: 0 !important;
+        letter-spacing: 0 !important;
+        gap: 0 !important;
+        margin: 0 !important;
+    }
+
+    .brand h1 .logo-icon {
+        font-size: 1.4rem !important;
+        line-height: 1 !important;
+    }
+
+    .brand-subtitle {
+        display: none !important;
+    }
+
+    /* Hide header controls (settings + theme) on mobile */
+    .header-controls {
+        display: none !important;
+    }
+
+    /* Right zone: flex-1 — home btn + search bar + search btn */
+    .header-search-container {
+        flex: 1 1 0% !important;
+        display: flex !important;
+        align-items: center !important;
+        padding: 0 0.65rem 0 0.35rem !important;
+        gap: 0.4rem !important;
+        height: 100% !important;
+        box-sizing: border-box !important;
+        order: unset !important;
+        flex-basis: auto !important;
+        width: auto !important;
+        margin: 0 !important;
+    }
+
+    /* Home button: 36×36, same column as #sidebarToggleBtn below */
+    #homeBtn {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        flex: 0 0 36px !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .header-search-bar {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+    }
+
+    #globalSearchBtn {
+        height: 36px !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* 2. Thin-Line Collapsed Sidebar & Extended Blur Overlay */
+    .app-container {
+        position: relative;
+        overflow-x: hidden;
+    }
+
+    /* ── 3. Collapsed Sidebar Rail (42px) ───────────────────── */
+    .sidebar-collapsed aside.filters {
+        width: 42px !important;
+        min-width: 42px !important;
+        max-width: 42px !important;
+        padding: 0 !important;
+        border-right: 1px solid var(--border) !important;
+        background: var(--sidebar-bg) !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        overflow: visible !important;
+        position: fixed !important;
+        top: var(--mobile-header-height, 56px) !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        height: calc(100dvh - var(--mobile-header-height, 56px)) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        align-items: center !important;
+        z-index: 100 !important;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08) !important;
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        transform: translateX(0) !important;
+    }
+
+    /* Hide all sidebar form content in collapsed mode */
+    .sidebar-collapsed aside.filters > .sidebar-group {
+        display: none !important;
+    }
+
+    /* Collapsed sticky header: just the toggle button */
+    .sidebar-collapsed .sidebar-sticky-header {
+        width: 42px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        min-height: 52px !important;
+        height: 52px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .sidebar-collapsed .sidebar-sticky-header > *:not(#sidebarToggleBtn) {
+        display: none !important;
+    }
+
+    .sidebar-collapsed .legacy-collapsed-rail {
+        flex: 1 1 auto !important;
+        margin-top: 0.5rem !important;
+        padding-top: 0 !important;
+        /* Four 36px actions plus three 9.33px gaps = 172px: the height of
+           the first mobile card, including its outer border. */
+        gap: calc(28px / 3) !important;
+        position: relative !important;
+    }
+
+    body.legacy-layout .sidebar-collapsed .legacy-collapsed-rail {
+        margin-top: 0.5rem !important;
+        padding-top: 0 !important;
+    }
+
+    /* Extended sidebar sticky header: proper horizontal row */
+    .app-container:not(.sidebar-collapsed) .sidebar-sticky-header {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        flex-wrap: nowrap !important;
+        gap: 8px !important;
+        height: 52px !important;
+        padding: 0 3px !important;
+        margin: 0 -3px 0 -3px !important;
+        box-sizing: border-box !important;
+    }
+
+    .app-container:not(.sidebar-collapsed) .sidebar-sticky-header #sidebarToggleBtn {
+        flex: 0 0 36px !important;
+        width: 36px !important;
+        height: 36px !important;
+        margin: 0 !important;
+    }
+
+    .app-container:not(.sidebar-collapsed) .sidebar-sticky-header #viewSavedBtn {
+        flex: 1 1 auto !important;
+        height: 36px !important;
+        justify-content: center !important;
+    }
+
+    /* ── 4. Rail Icon Buttons ───────────────────────────────── */
+    #sidebarToggleBtn {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        margin: 8px 0 !important;
+    }
+
+    /* ── 2. App container ───────────────────────────────────── */
+    .app-container {
+        position: relative;
+        overflow-x: hidden;
+    }
+
+    /* Mobile Settings button — bottom of collapsed rail */
+    #mobileSettingsBtn {
+        display: flex !important;
+        margin-top: auto !important;
+        margin-bottom: 6px !important;
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        padding: 0 !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border) !important;
+        color: var(--text) !important;
+        cursor: pointer !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Hide settings button when sidebar is open */
+    .app-container:not(.sidebar-collapsed) #mobileSettingsBtn {
+        display: none !important;
+    }
+
+    /* ── 5. Extended Sidebar — starts below header, slides in ── */
+    .app-container:not(.sidebar-collapsed) aside.filters {
+        position: fixed !important;
+        top: var(--mobile-header-height, 56px) !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        height: calc(100dvh - var(--mobile-header-height, 56px)) !important;
+        width: 300px !important;
+        max-width: 85vw !important;
+        z-index: 160 !important;
+        box-shadow: 8px 0 32px rgba(0, 0, 0, 0.28) !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        overflow-y: auto !important;
+        background: var(--sidebar-bg) !important;
+        border-right: 1px solid var(--border) !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        transform: translateX(0) !important;
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    .app-container:not(.sidebar-collapsed) aside.filters > .sidebar-group {
+        width: calc(100% - 6px) !important;
+        margin-left: 3px !important;
+        margin-right: 3px !important;
+        box-sizing: border-box !important;
+    }
+
+    .app-container:not(.sidebar-collapsed) #legacyCollapsedRail + .sidebar-group {
+        margin-top: 0.5rem !important;
+    }
+
+    .app-container:not(.sidebar-collapsed) main.results {
+        margin-left: 0 !important;
+    }
+
+    .sidebar-collapsed main.results {
+        margin-left: 42px !important;
+        width: calc(100% - 42px) !important;
+    }
+
+    /* ── 6. Background blur backdrop — also starts below header ── */
+    .mobile-sidebar-backdrop {
+        position: fixed;
+        top: var(--mobile-header-height, 56px);
+        left: 0;
+        width: 100vw;
+        height: calc(100vh - var(--mobile-header-height, 56px));
+        z-index: 155;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .mobile-sidebar-backdrop.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* ── 7. Main content ────────────────────────────────────── */
+    main.results {
+        flex: 1;
+        padding: 0 0.85rem 1rem 0.85rem;
+        box-sizing: border-box;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    /* Reduce results-header bottom gap so content sits closer */
+    .results-header {
+        margin-bottom: 0.5rem !important;
+        height: auto !important;
+        min-height: 52px !important;
+        padding: 0.5rem 0.85rem !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    /* ── 8. Discover Dashboard — Asymmetric Expanding Toggles ── */
+    #discoverDashboardToggles {
+        display: flex !important;
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        gap: 0.5rem !important;
+        align-items: center !important;
+    }
+
+    #discoverDashboardToggles .nav-btn {
+        transition: flex-basis 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                    max-width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                    background-color 0.2s ease,
+                    border-color 0.2s ease !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+        text-overflow: ellipsis !important;
+        height: 36px !important;
+        box-sizing: border-box !important;
+        flex-shrink: 1 !important;
+    }
+
+    #discoverDashboardToggles .nav-btn.active {
+        flex: 1 1 auto !important;
+        max-width: none !important;
+    }
+
+    #discoverDashboardToggles .nav-btn:not(.active) {
+        flex: 0 0 110px !important;
+        max-width: 110px !important;
+    }
+
+    #discoverDashboardToggles .nav-btn,
+    #discoverDashboardToggles .nav-btn.active,
+    #discoverDashboardToggles .nav-btn:not(.active) {
+        flex: 1 1 0 !important;
+        max-width: none !important;
+        text-align: center !important;
+    }
+
+    /* Keep the sidebar and results rules on the same 52px border-box grid. */
+    .sidebar-collapsed .sidebar-sticky-header,
+    .app-container:not(.sidebar-collapsed) .sidebar-sticky-header,
+    .results-header {
+        height: 52px !important;
+        min-height: 52px !important;
+        box-sizing: border-box !important;
+    }
+
+    .app-container:not(.sidebar-collapsed) .sidebar-sticky-header {
+        padding-left: 3px !important;
+        padding-right: 3px !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    /* ── 9. Discover dashboard grid alignment ───────────────── */
+    .discover-dashboard,
+    .discover-dashboard #featuredClassicsGrid,
+    .discover-dashboard .genre-grid {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .book-grid {
+        grid-template-columns: 1fr !important;
+        gap: 0.85rem;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .book-grid:not(.list-view) .book-title {
+        min-height: 0 !important;
+    }
+
+    .book-grid:not(.list-view) .book-author {
+        margin-bottom: 0.35rem !important;
+    }
+
+    .book-grid:not(.list-view) .tags-list.grid-tags {
+        display: block !important;
+        margin-top: auto !important;
+        padding-top: 0.2rem !important;
+        max-height: 40px !important;
+        box-sizing: border-box !important;
+        gap: 1px 0.25rem !important;
+        row-gap: 2px !important;
+    }
+
+    .book-grid:not(.list-view) .tag,
+    .book-grid:not(.list-view) .tag-overflow {
+        box-sizing: border-box !important;
+        font-size: 0.62rem !important;
+        line-height: 1.1 !important;
+        padding: 2px 5px !important;
+    }
+
+    .book-grid:not(.list-view) .tags-list.grid-tags .tag-row {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.25rem;
+        min-height: 17px;
+    }
+
+    .book-grid:not(.list-view) .tags-list.grid-tags .tag-overflow {
+        display: inline-flex;
+        margin-top: 1px;
+    }
+
+    .book-grid:not(.list-view) .book-meta {
+        margin-top: 0.5rem !important;
+        padding-top: 0.5rem !important;
+    }
+
+    #discoverDashboardToggles .nav-btn,
+    #discoverDashboardToggles .nav-btn.active,
+    #discoverDashboardToggles .nav-btn:not(.active) {
+        flex: 1 1 0 !important;
+        max-width: none !important;
+        text-align: center !important;
+    }
+
+    .results-header-left {
+        flex: 1 1 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* Keep the drawer within the dynamic mobile viewport; its centre section
+       scrolls instead of forcing the footer below the screen. */
+    .details-drawer-overlay,
+    .details-drawer-container {
+        height: 100dvh !important;
+        min-height: 0 !important;
+    }
+
+    .details-drawer-header,
+    .details-drawer-footer {
+        flex-shrink: 0 !important;
+    }
+
+    .sidebar-collapsed aside.filters #mobileSettingsBtn {
+        position: static !important;
+        align-self: center !important;
+        margin-top: auto !important;
+        margin-bottom: 6px !important;
+        transform: none !important;
+    }
+
+    /* Legacy collapsed-sidebar fading hides every non-rail child by default;
+       Settings is the fifth rail control and must remain visible. */
+    body.legacy-layout .sidebar-collapsed #mobileSettingsBtn {
+        display: flex !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        position: static !important;
+    }
+
+    .details-drawer-body {
+        min-height: 0 !important;
+        overflow-y: auto !important;
+    }
+
+    .details-drawer-footer {
+        padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+    }
+
+    .tag {
+        cursor: default !important;
+    }
+
+    /* ── 10. Settings Panel → Slide-up Bottom Sheet ─────────── */
+    .settings-dropdown {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        max-height: 85vh !important;
+        border-radius: 18px 18px 0 0 !important;
+        z-index: 220 !important;
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.3) !important;
+        box-sizing: border-box !important;
+        overflow-y: auto !important;
+    }
+
+    .settings-dropdown-header::before {
+        content: "";
+        display: block;
+        width: 36px;
+        height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        margin: 0 auto 8px auto;
+        opacity: 0.6;
+    }
+}
+
+/* Small Phone Breakpoint (≤480px) */
+@media (max-width: 480px) {
+
+    main.results {
+        padding: 0 0.65rem 0.85rem 0.65rem;
+    }
+
+    .book-grid {
+        gap: 0.65rem;
+    }
+
+    .cover-container,
+    .cover-container img,
+    .cover-container .no-cover {
+        width: 72px !important;
+        height: 104px !important;
+    }
+
+    .details-drawer-container {
+        width: 100vw !important;
+        max-width: 100vw !important;
+    }
+
+    .genre-grid {
+        grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)) !important;
+        gap: 0.75rem !important;
+    }
+
+    .shelf-covers {
+        height: 115px !important;
+    }
+
+    .shelf-book-cover {
+        height: 90px !important;
+        width: 58px !important;
+    }
 }

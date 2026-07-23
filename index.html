@@ -35,7 +35,7 @@
             <button id="globalSearchBtn" class="search-btn">Search</button>
         </div>
         <div class="header-controls">
-            <div class="toggle-switch-wrapper" style="margin-right: 5px;">
+            <div class="toggle-switch-wrapper" id="headerThemeWrapper" style="margin-right: 5px;">
                 <label class="theme-switch" for="checkbox">
                     <input type="checkbox" id="checkbox" />
                     <div class="slider">
@@ -78,13 +78,64 @@
                 <button id="settingsCloseBtn" class="settings-close-btn">&times;</button>
             </div>
             <div class="settings-content">
+                <div class="settings-category" id="categoryAppearance">
+                    <div class="settings-category-title">Appearance</div>
+                    <div class="settings-row" title="Toggle between Dark and Light mode">
+                        <span class="settings-label">Dark Mode</span>
+                        <label class="theme-switch" for="mobileThemeCheckbox">
+                            <input type="checkbox" id="mobileThemeCheckbox">
+                            <div class="slider">
+                                <span class="icon sun">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="5"></circle>
+                                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                                    </svg>
+                                </span>
+                                <span class="icon moon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                                    </svg>
+                                </span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="settings-category" id="categoryGeneral">
                     <div class="settings-category-title">General</div>
                     <div class="settings-row" title="Default is Grid view. Enable to display book results as a compact list instead.">
                         <span class="settings-label">List View</span>
                         <label class="theme-switch" for="listViewToggle">
                             <input type="checkbox" id="listViewToggle">
-                            <div class="slider url-slider"></div>
+                            <div class="slider url-slider">
+                                <span class="icon grid-icon">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="3" width="7" height="7"></rect>
+                                        <rect x="14" y="3" width="7" height="7"></rect>
+                                        <rect x="14" y="14" width="7" height="7"></rect>
+                                        <rect x="3" y="14" width="7" height="7"></rect>
+                                    </svg>
+                                </span>
+                                <span class="icon list-icon">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="8" y1="6" x2="21" y2="6"></line>
+                                        <line x1="8" y1="12" x2="21" y2="12"></line>
+                                        <line x1="8" y1="18" x2="21" y2="18"></line>
+                                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                                    </svg>
+                                </span>
+                            </div>
                         </label>
                     </div>
                     <div class="settings-row" title="Switch to the classic sidebar/header layout">
@@ -555,7 +606,14 @@
                     </div>
                 </div>
             </details>
+            <button id="mobileSettingsBtn" class="mobile-sidebar-settings-btn nav-btn" title="Settings">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </button>
         </aside>
+        <div id="mobileSidebarBackdrop" class="mobile-sidebar-backdrop"></div>
         <main class="results">
             <div id="resultsHeader" class="results-header">
                 <div class="results-header-left">

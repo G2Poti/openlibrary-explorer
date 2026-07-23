@@ -394,16 +394,23 @@ const toggleLibrary = (bookData) => {
     updateLibraryBadge();
     if (currentViewMode === 'library') applyLocalFilters();
 };
-document.querySelector('.theme-switch input[id="checkbox"]').addEventListener('change', (e) => {
-    document.body.setAttribute('data-theme', e.target.checked ? 'dark' : 'light');
+const syncThemeCheckboxes = (isDark) => {
+    const cbHeader = document.getElementById('checkbox');
+    const cbMobile = document.getElementById('mobileThemeCheckbox');
+    if (cbHeader) cbHeader.checked = isDark;
+    if (cbMobile) cbMobile.checked = isDark;
+    document.body.setAttribute('data-theme', isDark ? 'dark' : 'light');
+};
+document.addEventListener('change', (e) => {
+    if (e.target && (e.target.id === 'checkbox' || e.target.id === 'mobileThemeCheckbox')) {
+        syncThemeCheckboxes(e.target.checked);
+    }
 });
 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    document.getElementById('checkbox').checked = true;
-    document.body.setAttribute('data-theme', 'dark');
+    syncThemeCheckboxes(true);
 }
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    document.getElementById('checkbox').checked = e.matches;
-    document.body.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+    syncThemeCheckboxes(e.matches);
 });
 const setupTagInput = (inputId, containerId, onInputCleared) => {
     const input = document.getElementById(inputId);
@@ -1931,6 +1938,43 @@ const performSearch = async (isLoadMore = false) => {
 };
 const renderTagsHTML = (subjects, maxChars) => {
     if (!subjects || subjects.length === 0) return '';
+
+    // Mobile cards have exactly two compact tag rows. Pack each row by looking
+    // ahead for the next subject that fits instead of letting one long subject
+    // leave unused space at the end of a row.
+    if (window.innerWidth <= 768 && maxChars === 90) {
+        const rowCapacity = 44;
+        const tagCost = subject => subject.length + 8;
+        const remaining = subjects.filter(subject => subject.length <= 26);
+        const overflow = subjects.filter(subject => subject.length > 26);
+        const rows = [[], []];
+
+        rows.forEach((row, rowIndex) => {
+            // Reserve room for the +n indicator on the second row whenever
+            // there are subjects we have not placed yet.
+            const capacity = rowIndex === 1 && remaining.length > 0 ? rowCapacity - 10 : rowCapacity;
+            let used = 0;
+            for (let i = 0; i < remaining.length;) {
+                const subject = remaining[i];
+                const cost = tagCost(subject);
+                if (used + cost <= capacity) {
+                    row.push(subject);
+                    used += cost;
+                    remaining.splice(i, 1);
+                } else {
+                    i++;
+                }
+            }
+        });
+
+        overflow.push(...remaining);
+        const rowHtml = rows
+            .filter(row => row.length)
+            .map((row, index) => `<span class="tag-row">${row.map(subject => `<span class="tag" title="${escapeHTML(subject)}">${escapeHTML(subject)}</span>`).join('')}${index === rows.filter(entry => entry.length).length - 1 && overflow.length > 0 ? `<span class="tag-overflow" title="${escapeHTML(overflow.join(', '))}">+${overflow.length}</span>` : ''}</span>`)
+            .join('');
+        return rowHtml || `<span class="tag-overflow" title="${escapeHTML(overflow.join(', '))}">+${overflow.length}</span>`;
+    }
+
     let visible = [];
     let extraTags = [];
     let currentChars = 0;
@@ -2743,11 +2787,45 @@ DOM.settingsCloseBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     DOM.settingsPanel.style.display = 'none';
 });
+const mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
+if (mobileSettingsBtn) {
+    mobileSettingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isHidden = DOM.settingsPanel.style.display === 'none';
+        DOM.settingsPanel.style.display = isHidden ? 'block' : 'none';
+    });
+}
 window.addEventListener('click', (e) => {
-    if (DOM.settingsPanel.style.display === 'block' && !DOM.settingsPanel.contains(e.target) && e.target !== DOM.settingsBtn) {
+    if (DOM.settingsPanel.style.display === 'block' && !DOM.settingsPanel.contains(e.target) && e.target !== DOM.settingsBtn && e.target !== mobileSettingsBtn && !mobileSettingsBtn?.contains(e.target)) {
         DOM.settingsPanel.style.display = 'none';
     }
 });
+const mobileSidebarBackdrop = document.getElementById('mobileSidebarBackdrop');
+// Measure actual header height and expose as CSS custom property so extended
+// sidebar and backdrop start exactly below the sticky header on mobile.
+function updateMobileHeaderHeight() {
+    if (window.innerWidth <= 768) {
+        const hdr = document.querySelector('header');
+        if (hdr) {
+            document.documentElement.style.setProperty(
+                '--mobile-header-height',
+                hdr.getBoundingClientRect().height + 'px'
+            );
+        }
+    }
+}
+updateMobileHeaderHeight();
+window.addEventListener('resize', updateMobileHeaderHeight);
+
+if (mobileSidebarBackdrop) {
+    mobileSidebarBackdrop.addEventListener('click', () => {
+        const container = document.querySelector('.app-container');
+        if (container) {
+            container.classList.add('sidebar-collapsed');
+            mobileSidebarBackdrop.classList.remove('active');
+        }
+    });
+}
 // Details drawer close event listeners
 DOM.detailsCloseBtn.addEventListener('click', closeDetailsDrawer);
 DOM.detailsBackdrop.addEventListener('click', closeDetailsDrawer);
@@ -2756,6 +2834,13 @@ const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
 const legacyCollapsedRail = document.getElementById('legacyCollapsedRail');
 const railFilterBtn = document.getElementById('railFilterBtn');
 const railSortBtn = document.getElementById('railSortBtn');
+
+// Settings is a fifth collapsed-rail control. Keeping it inside the rail
+// avoids the legacy sidebar's hide/fade rules for ordinary form content.
+if (mobileSettingsBtn && legacyCollapsedRail) {
+    legacyCollapsedRail.appendChild(mobileSettingsBtn);
+}
+
 let sidebarExpandRevealTimeoutId = null;
 if (sidebarToggleBtn) {
     sidebarToggleBtn.addEventListener('click', () => {
@@ -2764,20 +2849,18 @@ if (sidebarToggleBtn) {
         if (container) {
             const collapsing = !container.classList.contains('sidebar-collapsed');
             container.classList.toggle('sidebar-collapsed');
+            if (mobileSidebarBackdrop) {
+                mobileSidebarBackdrop.classList.toggle('active', !container.classList.contains('sidebar-collapsed'));
+            }
             clearTimeout(sidebarExpandRevealTimeoutId);
             if (document.body.classList.contains('legacy-layout')) {
                 document.body.classList.add('legacy-sidebar-transitioning');
                 if (collapsing) {
-                    // Relocate the library/add-all buttons into the collapsed icon
-                    // rail immediately; they're already hidden via the
-                    // legacy-sidebar-transitioning class, so this reparenting is invisible.
                     if (legacyCollapsedRail && railFilterBtn) {
                         legacyCollapsedRail.insertBefore(DOM.viewSavedBtn, railFilterBtn);
                         legacyCollapsedRail.insertBefore(DOM.toggleAllBtn, railFilterBtn);
                     }
                 } else {
-                    // Moving back into the sticky header, still hidden until the
-                    // width transition finishes below.
                     if (DOM.sidebarStickyHeader && DOM.legacySlotAnchor) {
                         DOM.sidebarStickyHeader.insertBefore(DOM.viewSavedBtn, DOM.legacySlotAnchor);
                         DOM.sidebarStickyHeader.insertBefore(DOM.toggleAllBtn, DOM.legacySlotAnchor);
@@ -2963,6 +3046,7 @@ const handleGridClick = (e, getBookFn) => {
     // 1. Tag clicked
     const tagEl = e.target.closest('.tag');
     if (tagEl) {
+        if (window.innerWidth <= 768) return;
         e.stopPropagation();
         const value = tagEl.textContent;
         if (e.shiftKey) {
@@ -3042,3 +3126,31 @@ if (DOM.toggleTrendingBtn && DOM.toggleGenresBtn) {
         }
     });
 }
+
+// Mobile: shorten inactive discover tab labels so flex-shrink can compress them
+// Active:   "Trending Books" / "Popular Genres"
+// Inactive: "Books"          / "Genres"
+function updateDiscoverToggleLabels() {
+    if (!DOM.toggleTrendingBtn || !DOM.toggleGenresBtn) return;
+    if (window.innerWidth > 768) {
+        // Always restore full labels on desktop
+        DOM.toggleTrendingBtn.textContent = 'Trending Books';
+        DOM.toggleGenresBtn.textContent   = 'Popular Genres';
+        return;
+    }
+    if (DOM.toggleTrendingBtn.classList.contains('active')) {
+        DOM.toggleTrendingBtn.textContent = 'Trending Books';
+        DOM.toggleGenresBtn.textContent   = 'Popular Genres';
+    } else {
+        DOM.toggleTrendingBtn.textContent = 'Trending Books';
+        DOM.toggleGenresBtn.textContent   = 'Popular Genres';
+    }
+}
+
+// Observe active class changes on the toggle buttons to update labels reactively
+if (DOM.toggleTrendingBtn && DOM.toggleGenresBtn) {
+    new MutationObserver(updateDiscoverToggleLabels).observe(DOM.toggleTrendingBtn, { attributes: true, attributeFilter: ['class'] });
+    new MutationObserver(updateDiscoverToggleLabels).observe(DOM.toggleGenresBtn,   { attributes: true, attributeFilter: ['class'] });
+}
+window.addEventListener('resize', updateDiscoverToggleLabels);
+updateDiscoverToggleLabels();

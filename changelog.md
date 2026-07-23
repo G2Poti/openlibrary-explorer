@@ -1,6 +1,14 @@
 # Open Library Catalog - Project Changelog & Revision History
 
-## Version 1.5 - UI Overhaul (Dashboard, Sidebar, Side-rail, Interactivity) & Server-Side Ratings (Current)
+## Version 1.5b - Experimental Mobile Layout Support (Current)
+
+**Experimental Mobile Layout Support**
+- Introduced initial experimental responsive layout styles and touch-friendly UI adaptations for mobile viewports (`@media (max-width: 768px)`).
+- Optimized header elements, search bar alignment, side-rail visibility, and grid columns on smaller screens to ensure readable layouts and fluid scrolling.
+
+---
+
+## Version 1.5 - UI Overhaul (Dashboard, Sidebar, Side-rail, Interactivity) & Server-Side Ratings
 
 **Home Page Dashboard & UI Polish**
 - Expanded the "Trending Books" selection with a doubled, more diverse dataset rather than just classics.
@@ -11,11 +19,6 @@
 **Sidebar Collapse & Animation Refinements**
 - Eliminated all jitter and "kick-back" during sidebar collapse animations by stripping conflicting margin transitions and anchoring the sidebar to a static internal bounding box.
 - Added a new vertical icon rail (My Library, Add/Remove All, Filter, Sort) that surfaces cleanly when collapsing the sidebar, with synchronized fade-in/out animations on expand.
-- Clicking the Filter or Sort icon in the collapsed rail now opens that section in a floating popover instead of expanding the whole sidebar. Popovers dismiss by clicking outside, pressing Escape, or clicking the icon again, and opening both Filter and Sort at once stacks them cleanly instead of letting them overlap.
-
-**Legacy Layout Option**
-- Added a new "Legacy Layout" toggle in Settings for anyone who prefers the original sidebar and header design.
-- Off by default (new layout applies); switching it on restores the classic look.
 
 **Server-Side Rating Integration**
 - Overhauled the "Min Reviews" filter and "Rating" sort to query OpenLibrary directly via server-side parameters (`ratings_count:[X TO *]`, `sort=rating`) instead of performing client-side post-fetching filters.
@@ -38,6 +41,15 @@
 **Translation & Caching**
 - Extended title translation to any language in the filter dropdown, not just Spanish.
 - Cached trending books and translation lookups to cut down on redundant Open Library requests, and polished the in-progress translation UI.
+
+**Floating Filter & Sort Popovers**
+- Clicking the Filter or Sort icon in the collapsed sidebar rail now opens that section in a floating popover instead of expanding the whole sidebar.
+- Popovers can be dismissed by clicking outside, pressing Escape, or clicking the icon again.
+- Opening both Filter and Sort at once stacks them cleanly instead of letting them overlap.
+
+**Legacy Layout Option**
+- Added a new "Legacy Layout" toggle in Settings for anyone who prefers the original sidebar and header design.
+- Off by default (new layout applies); switching it on restores the classic look.
 
 ---
 
