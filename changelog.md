@@ -1,5 +1,18 @@
 # Open Library Catalog - Project Changelog & Revision History
 
+## Version 1.5c - Mobile Layout Polish & Bug Fixes (Current)
+
+**Mobile Layout Polish & Interactions**
+- Fixed a mobile tap-delay bug where every button took ~0.5-1s to register a press. Caused by the page never declaring `touch-action`, so the browser held every tap to check whether it was the start of a double-tap-zoom gesture. Added `touch-action: manipulation` globally to remove the delay while still allowing pinch-zoom.
+- Disabled the default `-webkit-tap-highlight-color` overlay that became visible on sidebar icons once the above fix let taps register instantly, replacing it with the app's existing hover/active styles for touch feedback.
+- Rewrote the mobile settings panel to slide up from the bottom with a fullscreen blurred backdrop and drag-to-dismiss support.
+- Rewrote mobile List View and fixed grid distortion when toggling between views.
+- Touch-Safe All-Tags Popover: Added a transparent dismissal overlay with single-tap protection to prevent accidental card/drawer clicks, along with mouse wheel/scroll bypass.
+- Expanded Details Drawer Tag Flow: Unrestricted tag height so subject tags flow naturally across the scrollable drawer, with a `+N` badge for extra long subject lists.
+- Reduced Mobile Details Drawer Tag Density: Reduced visible subject tag capacity in the details drawer on mobile by 50% for a cleaner mobile drawer experience while keeping desktop drawer capacity intact.
+- General UI & Badge Visual Refinements: Restructured mobile list card layout and harmonized badge heights and color accents across views.
+
+---
 ## Version 1.5b - Experimental Mobile Layout Support (Current)
 
 **Experimental Mobile Layout Support**

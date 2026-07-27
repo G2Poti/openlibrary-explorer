@@ -1,3 +1,8 @@
+html {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
 :root {
     --main-bg: #fdfdfc;
     --sidebar-bg: #f1f5f9;
@@ -418,18 +423,18 @@ body.legacy-layout .sidebar-collapsed .legacy-collapsed-rail {
     display: none;
 }
 
-/* Fade the rail in only after the width transition has mostly finished (mirrors
-   the sticky-header button fade above), and hide it instantly while transitioning
-   so nothing pops in mid-animation in either direction. */
+/* Previously these faded in with a delay after the width transition
+   finished, while #mobileSettingsBtn (styled separately, with its own
+   opacity:1 !important rule) always appeared immediately — the mismatch
+   made settings pop in noticeably earlier than its four rail neighbors.
+   Making all of them appear immediately, with no fade/delay, keeps every
+   rail icon consistent with how settings already looked. */
 body.legacy-layout .legacy-collapsed-rail>* {
     opacity: 1;
-    transition: opacity 0.15s ease;
 }
 
 body.legacy-sidebar-transitioning .legacy-collapsed-rail>* {
-    opacity: 0 !important;
-    pointer-events: none;
-    transition: none;
+    opacity: 1;
 }
 
 /* Floating popovers opened by the collapsed-rail Filter/Sort shortcuts.
@@ -1587,7 +1592,7 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
     position: relative;
     animation: cardFadeIn 0.35s ease both;
-    animation-delay: calc(var(--card-index, 0) * 0.006s);
+    animation-delay: calc(min(var(--card-index, 0), 12) * 0.006s);
     content-visibility: auto;
     contain-intrinsic-size: auto 240px;
 }
@@ -1780,36 +1785,124 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     display: none;
 }
 
+.tags-compact-badge {
+    display: none;
+}
+
+.tags-popup {
+    position: fixed;
+    z-index: 300;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    padding: 10px;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-content: flex-start;
+    overflow-y: auto;
+    /* Hard caps regardless of how many tags there are — a book with 173
+       subjects should scroll inside a contained box, not stretch to fill
+       (or spill past) the screen. */
+    max-width: min(320px, calc(100vw - 24px));
+    max-height: min(280px, calc(100vh - 24px));
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.tags-popup.open {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.tags-popup .tag {
+    cursor: default;
+}
+
 .tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     font-size: 0.7rem;
-    padding: 3px 6px;
-    border-radius: 12px;
+    line-height: 1;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
     font-weight: 500;
     text-transform: uppercase;
     border: 1px solid var(--border);
     white-space: nowrap;
     background: var(--sidebar-bg);
+    color: var(--text);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
-.tag:hover {
-    background: var(--accent);
-    color: var(--main-bg);
-    border-color: var(--accent);
+@media (hover: hover) {
+    .tag:hover {
+        background: var(--accent);
+        color: var(--main-bg);
+        border-color: var(--accent);
+    }
+}
+
+.tags-popup-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 299;
+    background: transparent;
+    cursor: default;
+}
+
+#detailsSubjects {
+    max-height: none !important;
 }
 
 .tag-overflow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     font-size: 0.7rem;
-    padding: 3px 7px;
-    border-radius: 12px;
+    line-height: 1;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
     font-weight: 600;
     white-space: nowrap;
-    background: var(--btn-bg);
-    color: white;
-    border: none;
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--btn-bg);
+    border: 1px solid rgba(37, 99, 235, 0.28);
     flex-shrink: 0;
-    cursor: default;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+[data-theme="dark"] .tag-overflow {
+    background: rgba(14, 165, 233, 0.15);
+    color: var(--accent);
+    border-color: rgba(56, 189, 248, 0.35);
+}
+
+@media (hover: hover) {
+    .tag-overflow:hover {
+        background: var(--btn-bg);
+        color: #ffffff;
+        border-color: var(--btn-bg);
+    }
+}
+
+.tag-overflow.active {
+    background: var(--btn-bg) !important;
+    color: #ffffff !important;
+    border-color: var(--btn-bg) !important;
 }
 
 .book-meta {
@@ -1974,11 +2067,19 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
 }
 
 .skeleton-anim {
-    background: var(--skeleton-shine);
-    background-size: 200% 100%;
-    animation: shine 1.5s infinite;
+    position: relative;
+    overflow: hidden;
     background-color: var(--skeleton);
     border-radius: 4px;
+}
+
+.skeleton-anim::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--skeleton-shine);
+    transform: translateX(-100%);
+    animation: shine 1.5s infinite;
 }
 
 .skeleton-cover {
@@ -2015,12 +2116,8 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
 }
 
 @keyframes shine {
-    0% {
-        background-position: 200% 0;
-    }
-
     100% {
-        background-position: -200% 0;
+        transform: translateX(100%);
     }
 }
 
@@ -2365,8 +2462,8 @@ button#loadMoreBtn:disabled {
 
 /* Floating Settings Panel */
 .settings-dropdown {
-    position: absolute;
-    top: 55px;
+    position: fixed;
+    top: 65px;
     right: 20px;
     background: var(--card-bg);
     border: 1px solid var(--border);
@@ -2374,7 +2471,7 @@ button#loadMoreBtn:disabled {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
     padding: 1.5rem;
     width: 330px;
-    z-index: 150;
+    z-index: 220 !important;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
 }
@@ -2805,15 +2902,19 @@ input[type=number] {
 
 /* Dual Icon styling for List/Grid View Switcher */
 .theme-switch .slider .icon.grid-icon {
-    color: #cbd5e1;
+    color: #e2e8f0;
 }
 
 .theme-switch .slider .icon.list-icon {
-    color: #94a3b8;
+    color: #cbd5e1;
 }
 
+/* The checked (List View on) state's background is a bright blue
+   (#0ea5e9) — the inactive grid-icon here used to be a muted grey
+   (#94a3b8) against it, which reads as barely-there. Brightened it to a
+   near-white so both icons stay legible whichever one is "inactive". */
 input:checked+.slider.url-slider .icon.grid-icon {
-    color: #94a3b8;
+    color: rgba(255, 255, 255, 0.7);
 }
 
 input:checked+.slider.url-slider .icon.list-icon {
@@ -2919,10 +3020,36 @@ input:checked+.slider.url-slider .icon.list-icon {
     }
 
     /* ── 3. Collapsed Sidebar Rail (42px) ───────────────────── */
+    /* body.legacy-layout .sidebar-collapsed aside.filters (defined near the
+       top of this file, for desktop's legacy layout) sets width:57px and
+       10px of side padding — same specificity (3 classes) as the rule right
+       below, so on mobile with Legacy Layout enabled it was winning outright.
+       Previously this was invisible because a max-width:42px on the mobile
+       rule happened to clamp the *rendered* width back down to 42px anyway —
+       but that was a side-effect, not a real fix, and removing that
+       max-width (to fix the collapse-animation bug) let the 57px/10px-padding
+       version through, fattening the rail, misaligning the toggle button
+       against the header's fixed 42px logo column, and eating into the
+       cards section's left margin. This explicitly resets both back to the
+       slim mobile values, and — being the same specificity but later in the
+       file — wins over that desktop rule. */
+    body.legacy-layout .sidebar-collapsed aside.filters {
+        width: 42px !important;
+        padding: 0 !important;
+    }
+
     .sidebar-collapsed aside.filters {
         width: 42px !important;
         min-width: 42px !important;
-        max-width: 42px !important;
+        /* No max-width here on purpose: `width` alone already pins this to
+           exactly 42px, and unlike max-width it IS one of the transitioned
+           properties. A max-width:42px here previously snapped instantly
+           (not being part of `transition: width ...`) the moment collapse
+           started, clamping the rendered box to 42px immediately regardless
+           of how far the width animation itself had actually progressed —
+           i.e. it silently cancelled the whole visible slide on collapse.
+           Expanding didn't have this problem because its max-width target
+           (85vw) is large enough to never clamp anything. */
         padding: 0 !important;
         border-right: 1px solid var(--border) !important;
         background: var(--sidebar-bg) !important;
@@ -2938,15 +3065,42 @@ input:checked+.slider.url-slider .icon.list-icon {
         flex-direction: column !important;
         gap: 0 !important;
         align-items: center !important;
-        z-index: 100 !important;
+        /* Must stay above .mobile-sidebar-backdrop (z-index 155) at all
+           times, not just while expanded. On collapse, the backdrop starts
+           fading out (over its own 0.3s) at the same instant the rail
+           starts shrinking — if the rail's z-index is lower than the
+           backdrop's, the still-partially-opaque/blurred backdrop sits on
+           top of it for virtually that whole duration, masking the actual
+           300ms width shrink underneath. What you end up seeing is just the
+           tail end of the backdrop's own fade, which reads as a near-instant
+           snap rather than the real animation. */
+        z-index: 165 !important;
         box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08) !important;
-        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
         transform: translateX(0) !important;
     }
 
-    /* Hide all sidebar form content in collapsed mode */
-    .sidebar-collapsed aside.filters > .sidebar-group {
-        display: none !important;
+    /* Hide sidebar form content in collapsed mode. Previously this used
+       display:none, which killed the width transition instantly (content
+       just vanished with no fade) instead of animating out alongside the
+       rail. Fading opacity keeps it inert without cutting the transition
+       short — but staying in the flex flow (even invisible) meant these two
+       <details> elements still added their own height to aside.filters'
+       flex column, which is what was pushing the collapsed-rail icons (and
+       the settings button pinned to the bottom of that rail) further down
+       than they should sit. `position: absolute` removes them from flow
+       while still letting them fade in place; the fade duration is stretched
+       to roughly match the 0.3s width transition instead of finishing in
+       half the time, so collapsing doesn't look like it visually finishes
+       well before the rail is actually done sliding. */
+    .sidebar-collapsed aside.filters>.sidebar-group {
+        position: absolute !important;
+        top: 52px !important;
+        left: 0 !important;
+        width: min(294px, calc(85vw - 6px)) !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transition: opacity 0.28s ease !important;
     }
 
     /* Collapsed sticky header: just the toggle button */
@@ -2962,7 +3116,7 @@ input:checked+.slider.url-slider .icon.list-icon {
         flex-shrink: 0 !important;
     }
 
-    .sidebar-collapsed .sidebar-sticky-header > *:not(#sidebarToggleBtn) {
+    .sidebar-collapsed .sidebar-sticky-header>*:not(#sidebarToggleBtn) {
         display: none !important;
     }
 
@@ -2974,6 +3128,9 @@ input:checked+.slider.url-slider .icon.list-icon {
            the first mobile card, including its outer border. */
         gap: calc(28px / 3) !important;
         position: relative !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
     }
 
     body.legacy-layout .sidebar-collapsed .legacy-collapsed-rail {
@@ -3071,25 +3228,31 @@ input:checked+.slider.url-slider .icon.list-icon {
         opacity: 1 !important;
         pointer-events: auto !important;
         transform: translateX(0) !important;
-        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
 
-    .app-container:not(.sidebar-collapsed) aside.filters > .sidebar-group {
-        width: calc(100% - 6px) !important;
+    .app-container:not(.sidebar-collapsed) aside.filters>.sidebar-group {
+        position: static !important;
+        width: min(294px, calc(85vw - 6px)) !important;
         margin-left: 3px !important;
         margin-right: 3px !important;
         box-sizing: border-box !important;
+        opacity: 1 !important;
+        transition: opacity 0.2s ease 0.1s !important;
     }
 
-    .app-container:not(.sidebar-collapsed) #legacyCollapsedRail + .sidebar-group {
+    /* Clip the fixed-width group so it doesn't poke out past the rail while
+       the aside itself is still animating between 42px and 300px wide. */
+    .sidebar-collapsed aside.filters,
+    .app-container:not(.sidebar-collapsed) aside.filters {
+        overflow-x: hidden !important;
+    }
+
+    .app-container:not(.sidebar-collapsed) #legacyCollapsedRail+.sidebar-group {
         margin-top: 0.5rem !important;
     }
 
-    .app-container:not(.sidebar-collapsed) main.results {
-        margin-left: 0 !important;
-    }
-
-    .sidebar-collapsed main.results {
+    main.results {
         margin-left: 42px !important;
         width: calc(100% - 42px) !important;
     }
@@ -3146,9 +3309,9 @@ input:checked+.slider.url-slider .icon.list-icon {
 
     #discoverDashboardToggles .nav-btn {
         transition: flex-basis 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-                    max-width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-                    background-color 0.2s ease,
-                    border-color 0.2s ease !important;
+            max-width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+            background-color 0.2s ease,
+            border-color 0.2s ease !important;
         overflow: hidden !important;
         white-space: nowrap !important;
         text-overflow: ellipsis !important;
@@ -3220,18 +3383,10 @@ input:checked+.slider.url-slider .icon.list-icon {
         display: block !important;
         margin-top: auto !important;
         padding-top: 0.2rem !important;
-        max-height: 40px !important;
+        max-height: 44px !important;
         box-sizing: border-box !important;
         gap: 1px 0.25rem !important;
-        row-gap: 2px !important;
-    }
-
-    .book-grid:not(.list-view) .tag,
-    .book-grid:not(.list-view) .tag-overflow {
-        box-sizing: border-box !important;
-        font-size: 0.62rem !important;
-        line-height: 1.1 !important;
-        padding: 2px 5px !important;
+        row-gap: 3px !important;
     }
 
     .book-grid:not(.list-view) .tags-list.grid-tags .tag-row {
@@ -3239,11 +3394,86 @@ input:checked+.slider.url-slider .icon.list-icon {
         flex-wrap: nowrap;
         gap: 0.25rem;
         min-height: 17px;
+        align-items: center;
+        margin-bottom: 3px !important;
+    }
+
+    .book-grid:not(.list-view) .tags-list.grid-tags .tag-row:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    .book-grid:not(.list-view) .tag {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 17px !important;
+        box-sizing: border-box !important;
+        font-size: 0.62rem !important;
+        line-height: 1 !important;
+        padding: 0 5px !important;
+        margin: 0 !important;
+        border-radius: 9px !important;
+        border: 1px solid var(--border) !important;
+        background: var(--sidebar-bg) !important;
+        color: var(--text) !important;
+        font-weight: 500 !important;
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .book-grid:not(.list-view) .tag-overflow {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 17px !important;
+        box-sizing: border-box !important;
+        font-size: 0.62rem !important;
+        line-height: 1 !important;
+        padding: 0 5px !important;
+        margin: 0 !important;
+        border-radius: 9px !important;
+        font-weight: 600 !important;
+        background: rgba(37, 99, 235, 0.1) !important;
+        color: var(--btn-bg) !important;
+        border: 1px solid rgba(37, 99, 235, 0.28) !important;
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    [data-theme="dark"] .book-grid:not(.list-view) .tag-overflow {
+        background: rgba(14, 165, 233, 0.15) !important;
+        color: var(--accent) !important;
+        border-color: rgba(56, 189, 248, 0.35) !important;
+    }
+
+    @media (hover: hover) {
+        .book-grid:not(.list-view) .tag:hover {
+            background: var(--accent) !important;
+            color: var(--main-bg) !important;
+            border-color: var(--accent) !important;
+        }
+        .book-grid:not(.list-view) .tag-overflow:hover {
+            background: var(--btn-bg) !important;
+            color: #ffffff !important;
+            border-color: var(--btn-bg) !important;
+        }
+    }
+
+    .book-grid:not(.list-view) .tag-overflow.active {
+        background: var(--btn-bg) !important;
+        color: #ffffff !important;
+        border-color: var(--btn-bg) !important;
+    }
+
+    .book-grid:not(.list-view) .tags-list.grid-tags .tag-row {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.25rem;
+        min-height: 17px;
+        align-items: center;
     }
 
     .book-grid:not(.list-view) .tags-list.grid-tags .tag-overflow {
-        display: inline-flex;
-        margin-top: 1px;
+        display: inline-flex !important;
+        margin-top: 0 !important;
     }
 
     .book-grid:not(.list-view) .book-meta {
@@ -3332,6 +3562,314 @@ input:checked+.slider.url-slider .icon.list-icon {
         border-radius: 2px;
         margin: 0 auto 8px auto;
         opacity: 0.6;
+    }
+
+    /* Just the grab handle above is enough affordance on mobile — the
+       title/×-close redundantly duplicate what the drag handle (and tapping
+       outside) already do. */
+    .settings-title,
+    .settings-close-btn {
+        display: none !important;
+    }
+
+    .settings-dropdown-header {
+        border-bottom: none !important;
+        margin-bottom: 0.5rem !important;
+        padding-bottom: 0 !important;
+    }
+
+    /* --- MOBILE REFINEMENT FIXES --- */
+
+    /* 3. Hide Legacy Layout settings row on mobile */
+    .legacy-layout-row {
+        display: none !important;
+    }
+
+    /* 4. List View Mobile Layout
+       The desktop list-view rules lay .card-details out as its own 4-column
+       grid (title / author / heart / tags) sitting next to a separate
+       .book-meta flex block (year / rating) — that only works with the
+       ~380px+ width desktop assumes. Squeezing that same 4-column grid into
+       a phone-width row is what caused the cramped, overlapping tags and the
+       right-edge cutoff. Rather than force 4 columns into no space, restructure
+       into two clean columns — Title/Author on the left, Heart/Year/Rating on
+       the right — using `display: contents` on the intermediate wrapper divs
+       (.card-main, .card-details, .book-meta) so their children become direct
+       items of a single grid on .book-card, positioned by name via
+       grid-template-areas. */
+    .book-grid.list-view .book-card {
+        display: grid !important;
+        grid-template-columns: 45px 1fr auto !important;
+        /* The middle row is 1fr (not auto, like the other two) — it absorbs
+           all leftover vertical space in the card, so author (align-self:
+           center within it) always sits perfectly centered between title's
+           actual bottom edge and tags' actual top edge, no matter how tall
+           title ends up being. Title and tags rows stay auto-sized to their
+           own content, so they hug the card's top/bottom padding directly —
+           that's what makes the padding above title and below tags match:
+           both are just the card's own (symmetric) padding, nothing else. */
+        grid-template-rows: auto 1fr auto !important;
+        grid-template-areas:
+            "cover title  heart"
+            "cover author tags"
+            "cover year   rating" !important;
+        align-items: stretch !important;
+        column-gap: 1.3rem !important;
+        row-gap: 7px !important;
+        padding: 0.65rem 0.75rem !important;
+    }
+
+    .book-grid.list-view .card-main,
+    .book-grid.list-view .card-details,
+    .book-grid.list-view .book-meta {
+        display: contents !important;
+    }
+
+    .book-grid.list-view .cover-container {
+        grid-area: cover !important;
+        align-self: center !important;
+        width: 45px !important;
+        height: 65px !important;
+    }
+
+    .book-grid.list-view .book-title {
+        grid-area: title !important;
+        align-self: start !important;
+        font-size: 0.9rem !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        /* Allow wrapping to a second line before truncating — a title only
+           gets an ellipsis if it still doesn't fit after two lines. This is
+           also why title's row is `auto` rather than a fixed height: a
+           2-line title just makes that row taller, and the 1fr row below it
+           (author) absorbs the difference automatically. */
+        -webkit-line-clamp: 2 !important;
+        min-height: 0 !important;
+    }
+
+    .book-grid.list-view .book-author {
+        grid-area: author !important;
+        align-self: center !important;
+        font-size: 0.8rem !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        -webkit-line-clamp: 2 !important;
+    }
+
+    .book-grid.list-view .action-buttons {
+        /* The base (non-list) .action-buttons rule absolutely-positions the
+           heart button over the card, which completely ignores grid-area and
+           align/justify-self — this is why it used to float oddly in the
+           corner instead of sitting in its assigned column. */
+        position: static !important;
+        grid-area: heart !important;
+        align-self: start !important;
+        justify-self: end !important;
+    }
+
+    /* Smaller heart button — the original size (sized for a much roomier
+       desktop list row) read as oversized here. */
+    .book-grid.list-view .action-buttons .library-btn {
+        width: 28px !important;
+        height: 28px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .book-grid.list-view .action-buttons .library-btn svg {
+        width: 14px !important;
+        height: 14px !important;
+    }
+
+    /* Individual tag pills don't survive being squeezed into this little
+       horizontal room — .tag has overflow:hidden (needed for its ellipsis),
+       which per the flexbox spec removes the "don't shrink below content
+       size" floor flex items normally get, letting flex-shrink compress each
+       pill down to just 1-2 letters instead of wrapping to the "+N" badge as
+       intended. Simplest fix, per your own suggestion: don't try to fit any
+       individual tags here at all — just show one always-accurate count. */
+    .book-grid.list-view .tags-list.list-tags {
+        display: none !important;
+    }
+
+    .book-grid.list-view .tags-compact-badge,
+    .book-grid.list-view .tag-overflow {
+        grid-area: tags !important;
+        align-self: center !important;
+        justify-self: end !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 20px !important;
+        box-sizing: border-box !important;
+        line-height: 1 !important;
+        font-size: 0.7rem !important;
+        font-weight: 600;
+        padding: 0 8px !important;
+        border-radius: 10px !important;
+        background: rgba(37, 99, 235, 0.1) !important;
+        color: var(--btn-bg) !important;
+        border: 1px solid rgba(37, 99, 235, 0.28) !important;
+        white-space: nowrap;
+        cursor: pointer;
+        margin: 0 !important;
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    [data-theme="dark"] .book-grid.list-view .tags-compact-badge,
+    [data-theme="dark"] .book-grid.list-view .tag-overflow {
+        background: rgba(14, 165, 233, 0.15) !important;
+        color: var(--accent) !important;
+        border-color: rgba(56, 189, 248, 0.35) !important;
+    }
+
+    @media (hover: hover) {
+        .book-grid.list-view .tags-compact-badge:hover,
+        .book-grid.list-view .tag-overflow:hover {
+            background: var(--btn-bg) !important;
+            color: #ffffff !important;
+            border-color: var(--btn-bg) !important;
+        }
+    }
+
+    .book-grid.list-view .tags-compact-badge.active,
+    .book-grid.list-view .tag-overflow.active {
+        background: var(--btn-bg) !important;
+        color: #ffffff !important;
+        border-color: var(--btn-bg) !important;
+    }
+
+    .book-grid.list-view .meta-left {
+        grid-area: year !important;
+        align-self: center !important;
+        justify-self: start !important;
+        font-size: 0.72rem !important;
+    }
+
+    .book-grid.list-view .book-meta>strong {
+        grid-area: rating !important;
+        align-self: center !important;
+        justify-self: end !important;
+        /* A badge too (same shape/height family as the tags-badge), but a
+           border + a slightly-darker-than-card fill instead of a solid
+           accent-color fill, so it stands out from the card without
+           reading as an identical/interchangeable element. */
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 20px !important;
+        box-sizing: border-box !important;
+        line-height: 1 !important;
+        padding: 0 8px !important;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--sidebar-bg);
+        font-size: 0.7rem !important;
+        white-space: nowrap;
+        margin: 0 !important;
+    }
+
+    /* Still no room for edition badges at this width. */
+    .book-grid.list-view .tags-list.grid-tags,
+    .book-grid.list-view .edition-badge {
+        display: none !important;
+    }
+
+    /* Hidden everywhere except mobile list view. */
+    .tags-compact-badge {
+        display: none;
+    }
+
+    /* 5. Status Text Vertical Centering */
+    .results-header-left {
+        min-height: 36px;
+        align-items: center !important;
+    }
+
+    #fetchStatus {
+        min-height: 1.2em;
+        display: inline-block;
+    }
+
+    /* 6. Settings Panel Drag-to-Dismiss Transition
+       The base rule below forces a transform/transition with !important so the
+       sheet animates back to rest after a normal open/close. But that same
+       !important also overrides the *inline* style.transition/style.transform
+       that script.js sets during a touch drag, which is why the panel used to
+       lag behind the finger. `.dragging` (added on touchstart, removed on
+       touchend/touchcancel) has higher specificity than `.settings-dropdown`
+       alone, so it wins the cascade and lets the inline transform track the
+       finger 1:1 with no transition. */
+    .settings-dropdown {
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    .settings-dropdown:not(.dragging) {
+        transform: translateY(0) !important;
+    }
+
+    .settings-dropdown.dismissing {
+        transition: transform 0.3s ease !important;
+        transform: translateY(100%) !important;
+    }
+
+    .settings-dropdown.dragging {
+        transition: none !important;
+    }
+
+    /* Shared blur/dim layer for two different modals:
+       - Filter/Sort popovers: stays BELOW the header/collapsed-sidebar
+         (z-index 90), so those two remain crisp — only the cards section
+         behind the floating popovers gets dimmed.
+       - Settings sheet: now that script.js reparents #settingsPanel to be a
+         direct child of <body> instead of living inside <header>, it's no
+         longer capped by the header's own stacking context, so this can sit
+         ABOVE header/sidebar too (z-index 210, still below the panel's own
+         220) and blur genuinely everything except the sheet itself. */
+    body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        background: rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+    }
+
+    /* pointer-events:auto so a tap outside the modal both closes it (via the
+       existing outside-click handlers) AND is consumed by this layer itself
+       — not passed through to whatever card happens to be underneath. */
+    body.rail-popover-open::after {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    body.settings-open::after {
+        z-index: 200 !important;
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* 7. Bottom Content Overflow */
+    main.results {
+        padding-bottom: max(4rem, calc(env(safe-area-inset-bottom) + 3rem)) !important;
+    }
+
+    /* 8. Prevent rail action buttons from being clipped */
+    .results-header-right {
+        flex-shrink: 0 !important;
+    }
+
+    /* 9. Rail Popover Scrollability */
+    .rail-popover {
+        max-height: calc(100dvh - var(--mobile-header-height, 48px) - 24px) !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
     }
 }
 

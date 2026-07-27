@@ -351,6 +351,7 @@ const renderNextChunk = (isEditionsSort, filterLangAA) => {
         card.style.setProperty('--card-index', i - renderIndex);
         fragment.appendChild(card);
     }
+    hydrateCachedCovers(fragment);
     DOM.grid.appendChild(fragment);
     renderIndex = endIdx;
     if (currentViewMode === 'search') {
@@ -1385,11 +1386,81 @@ const mapSubjectWorkToDoc = (w) => ({
     ratings_average: w.ratings_average || null,
     ratings_count: w.ratings_count || 0
 });
+// ---- Cover image caching ----
+// The metadata caches below (trending/genres) only ever saved *which* books
+// to show — the actual cover images still had to hit covers.openlibrary.org
+// over the network every single time, which is most of what "slow to load"
+// actually was. This caches the decoded image itself (as a data URL) in
+// IndexedDB, so a repeat view can paint the cover with zero network request
+// at all. Non-destructive by design: every <img> still gets its normal live
+// URL as `src` immediately, so nothing is slower than before if the cache
+// misses or fails — this only ever swaps in something faster when it hits.
+const COVER_CACHE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
+const COVER_DB_PREFIX = 'ole_cover_v1_';
+const coverFetchInFlight = new Set();
+
+const getCachedCoverDataUrl = async (coverId) => {
+    if (!coverId) return null;
+    try {
+        const raw = await localforage.getItem(`${COVER_DB_PREFIX}${coverId}`);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || Date.now() - parsed.ts > COVER_CACHE_TTL) return null;
+        return parsed.dataUrl;
+    } catch {
+        return null;
+    }
+};
+
+const cacheCoverInBackground = (coverId) => {
+    if (!coverId || coverFetchInFlight.has(coverId)) return;
+    coverFetchInFlight.add(coverId);
+    fetch(`https://covers.openlibrary.org/b/id/${coverId}-M.jpg`)
+        .then((res) => res.blob())
+        .then((blob) => new Promise((resolve, reject) => {
+            // Skip caching anything unexpectedly huge — covers are normally
+            // a few KB to ~100KB; this just guards against ever bloating
+            // IndexedDB on a weird response.
+            if (blob.size > 400 * 1024) { resolve(null); return; }
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+        }))
+        .then((dataUrl) => {
+            if (!dataUrl) return;
+            return localforage.setItem(`${COVER_DB_PREFIX}${coverId}`, JSON.stringify({ ts: Date.now(), dataUrl }));
+        })
+        .catch(() => { /* best-effort only */ })
+        .finally(() => coverFetchInFlight.delete(coverId));
+};
+
+// Call after inserting a batch of cover <img data-cover-id="..."> elements
+// (or on a DocumentFragment before insertion). Swaps in a cached data URL
+// where we have one (near-instant, no network), and quietly caches the rest
+// in the background for next time.
+const hydrateCachedCovers = (container) => {
+    if (!container) return;
+    const imgs = container.querySelectorAll('img[data-cover-id]');
+    imgs.forEach(async (img) => {
+        const coverId = img.dataset.coverId;
+        if (!coverId) return;
+        const cached = await getCachedCoverDataUrl(coverId);
+        if (cached) {
+            img.src = cached;
+        } else {
+            cacheCoverInBackground(coverId);
+        }
+    });
+};
+
+
+
 const DISCOVER_GENRES = ['Fantasy', 'Science Fiction', 'Mystery', 'Romance', 'History', 'Biography', 'Thriller', 'Classics', 'Horror', 'Poetry', 'Adventure', 'Self-Help', 'Young Adult', 'Graphic Novels'];
 
 const fetchGenreShelves = async () => {
     const GENRES_KEY = 'ole_genre_shelves_cache_v2';
-    const GENRES_TTL = 24 * 60 * 60 * 1000;
+    const GENRES_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days (was 24 hours)
     let isStale = false;
     try {
         const raw = await localforage.getItem(GENRES_KEY);
@@ -1487,7 +1558,7 @@ const renderDiscoverDashboard = async () => {
             let coversHtml = '';
             books.forEach(b => {
                 if (b.cover_i) {
-                    coversHtml += `<img class="shelf-book-cover" src="https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg" alt="Cover" />`;
+                    coversHtml += `<img class="shelf-book-cover" data-cover-id="${b.cover_i}" src="https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg" alt="Cover" />`;
                 }
             });
 
@@ -1497,6 +1568,7 @@ const renderDiscoverDashboard = async () => {
                 <span class="genre-name">${genre}</span>
             `;
             shelvesContainer.appendChild(shelfDiv);
+            hydrateCachedCovers(shelfDiv);
 
             shelfDiv.addEventListener('click', () => {
                 tagManagerInc.clear();
@@ -1519,7 +1591,7 @@ const renderDiscoverDashboard = async () => {
     if (DOM.grid.classList.contains('list-view')) featuredGrid.classList.add('list-view');
     else featuredGrid.classList.remove('list-view');
     const TRENDING_KEY = 'ole_trending_cache_v2';
-    const TRENDING_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
+    const TRENDING_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days (was 24 hours)
     const TRENDING_COUNT = 24;
     let isStale = false;
     let stored = null;
@@ -1546,8 +1618,8 @@ const renderDiscoverDashboard = async () => {
             card.style.setProperty('--card-index', idx);
             fragment.appendChild(card);
         });
+        hydrateCachedCovers(fragment);
         featuredGrid.appendChild(fragment);
-        // Background sync trending titles if needed
         syncCardTitles(cachedTrendingBooks);
         updateToggleAllBtnState();
         return;
@@ -1970,9 +2042,9 @@ const renderTagsHTML = (subjects, maxChars) => {
         overflow.push(...remaining);
         const rowHtml = rows
             .filter(row => row.length)
-            .map((row, index) => `<span class="tag-row">${row.map(subject => `<span class="tag" title="${escapeHTML(subject)}">${escapeHTML(subject)}</span>`).join('')}${index === rows.filter(entry => entry.length).length - 1 && overflow.length > 0 ? `<span class="tag-overflow" title="${escapeHTML(overflow.join(', '))}">+${overflow.length}</span>` : ''}</span>`)
+            .map((row, index) => `<span class="tag-row">${row.map(subject => `<span class="tag" title="${escapeHTML(subject)}">${escapeHTML(subject)}</span>`).join('')}${index === rows.filter(entry => entry.length).length - 1 && overflow.length > 0 ? `<span class="tag-overflow" data-subjects="${escapeHTML(JSON.stringify(subjects))}" title="Tap to see all tags">+${overflow.length}</span>` : ''}</span>`)
             .join('');
-        return rowHtml || `<span class="tag-overflow" title="${escapeHTML(overflow.join(', '))}">+${overflow.length}</span>`;
+        return rowHtml || `<span class="tag-overflow" data-subjects="${escapeHTML(JSON.stringify(subjects))}" title="Tap to see all tags">+${overflow.length}</span>`;
     }
 
     let visible = [];
@@ -1989,7 +2061,7 @@ const renderTagsHTML = (subjects, maxChars) => {
         }
     }
     const tagHtml = visible.map(s => `<span class="tag" title="${escapeHTML(s)}">${escapeHTML(s)}</span>`).join('');
-    const overflowHtml = extraTags.length > 0 ? `<span class="tag-overflow" title="${escapeHTML(extraTags.join(', '))} ">+${extraTags.length}</span>` : '';
+    const overflowHtml = extraTags.length > 0 ? `<span class="tag-overflow" data-subjects="${escapeHTML(JSON.stringify(subjects))}" title="Tap to see all tags">+${extraTags.length}</span>` : '';
     return tagHtml + overflowHtml;
 };
 const buildCard = (b, isEditionsSort, filterLangAA) => {
@@ -1997,13 +2069,21 @@ const buildCard = (b, isEditionsSort, filterLangAA) => {
     card.className = 'book-card';
     if (b.key) card.setAttribute('data-key', b.key);
     const cover = b.cover_i
-        ? `<img src="https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg" class="book-cover" alt="Cover Image" loading="lazy">`
+        ? `<img src="https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg" data-cover-id="${b.cover_i}" class="book-cover" alt="Cover Image" loading="lazy">`
         : `<div class="no-cover">No Cover</div>`;
     const author = b.author_name ? b.author_name[0] : 'Unknown Author';
     const year = b.first_publish_year || 'N/A';
     const ratingCount = b.ratings_count ? `(${b.ratings_count})` : '';
     const ratingDisplay = b.ratings_average ? `★ ${parseFloat(b.ratings_average).toFixed(1)} ${ratingCount}` : 'No rating';
     const editionBadge = (isEditionsSort && b.edition_count) ? `<span class="edition-badge">${b.edition_count} Editions</span>` : '';
+    // Mobile list view has too little horizontal room to show individual tag
+    // pills without them getting flex-shrunk down to unreadable slivers (see
+    // .tags-compact-badge CSS) — a single accurate "N tags" badge replaces
+    // them there instead of trying to cram some in and guess an overflow count.
+    const subjectCount = Array.isArray(b.subject) ? b.subject.length : 0;
+    const tagsCompactHtml = subjectCount > 0
+        ? `<span class="tags-compact-badge" data-subjects="${escapeHTML(JSON.stringify(b.subject))}" title="Tap to see all tags">${subjectCount} tag${subjectCount === 1 ? '' : 's'}</span>`
+        : '';
     const isInLibrary = library.some(saved => saved.key === b.key);
     let bookLangAA = 'en';
     if (b.language && b.language.length > 0) {
@@ -2024,6 +2104,7 @@ const buildCard = (b, isEditionsSort, filterLangAA) => {
                 </div>
                 <div class="tags-list grid-tags">${renderTagsHTML(b.subject, 90)}</div>
                 <div class="tags-list list-tags">${renderTagsHTML(b.subject, 65)}</div>
+                ${tagsCompactHtml}
             </div>
         </div>
         <div class="book-meta">
@@ -2077,7 +2158,23 @@ const openDetailsDrawer = async (b, finalAALang) => {
     // Render subjects list
     DOM.detailsSubjects.innerHTML = '';
     if (b.subject && b.subject.length > 0) {
-        b.subject.slice(0, 12).forEach(s => {
+        let visible = [];
+        let extraTags = [];
+        let currentChars = 0;
+        const maxBudget = window.innerWidth <= 768 ? 400 : 800;
+
+        for (let i = 0; i < b.subject.length; i++) {
+            let s = b.subject[i];
+            if (s.length > 40) { extraTags.push(s); continue; }
+            if (currentChars + s.length + 10 <= maxBudget || visible.length === 0) {
+                visible.push(s);
+                currentChars += s.length + 10;
+            } else {
+                extraTags.push(s);
+            }
+        }
+
+        visible.forEach(s => {
             const span = document.createElement('span');
             span.className = 'tag';
             span.textContent = s;
@@ -2095,6 +2192,19 @@ const openDetailsDrawer = async (b, finalAALang) => {
             });
             DOM.detailsSubjects.appendChild(span);
         });
+
+        if (extraTags.length > 0) {
+            const overflowSpan = document.createElement('span');
+            overflowSpan.className = 'tag-overflow';
+            overflowSpan.dataset.subjects = JSON.stringify(b.subject);
+            overflowSpan.title = 'Tap to see all tags';
+            overflowSpan.textContent = `+${extraTags.length}`;
+            overflowSpan.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openTagsPopup(overflowSpan);
+            });
+            DOM.detailsSubjects.appendChild(overflowSpan);
+        }
     } else {
         DOM.detailsSubjects.innerHTML = '<span style="opacity: 0.6; font-style: italic; font-size: 0.85rem;">No subjects listed.</span>';
     }
@@ -2176,6 +2286,7 @@ const openDetailsDrawer = async (b, finalAALang) => {
     }
 };
 const closeDetailsDrawer = () => {
+    closeTagsPopup();
     DOM.detailsDrawer.classList.remove('active');
     setTimeout(() => {
         DOM.detailsDrawer.style.display = 'none';
@@ -2600,6 +2711,21 @@ const applyListView = (enabled) => {
     DOM.grid.classList.toggle('list-view', enabled);
     const fg = document.getElementById('featuredClassicsGrid');
     if (fg) fg.classList.toggle('list-view', enabled);
+    // Cards use content-visibility:auto with contain-intrinsic-size as a
+    // placeholder size for off-screen cards. Some Chrome versions keep using
+    // the size cached from the previous layout (list-row height vs. grid-card
+    // height) after the class swap, leaving cards the wrong height/width
+    // until something else forces a relayout. Briefly disabling
+    // content-visibility and reading offsetHeight forces the browser to
+    // recompute real layout immediately, then re-enabling it restores the
+    // rendering-performance benefit for off-screen cards going forward.
+    const cards = DOM.grid.querySelectorAll('.book-card');
+    cards.forEach(card => { card.style.contentVisibility = 'visible'; });
+    // eslint-disable-next-line no-unused-expressions
+    DOM.grid.offsetHeight;
+    requestAnimationFrame(() => {
+        cards.forEach(card => { card.style.contentVisibility = ''; });
+    });
 };
 if (DOM.listViewToggle) {
     DOM.listViewToggle.checked = localStorage.getItem('ole_list_view') === 'true';
@@ -2776,46 +2902,152 @@ DOM.globalSearchInput.addEventListener('keydown', (e) => {
     }
 });
 // Settings dropdown floating panel listeners
+// On mobile, reparent the settings sheet to be a direct child of <body>.
+// It's already position:fixed so this doesn't change where it renders, but
+// it WAS a descendant of <header>, which creates its own stacking context —
+// meaning no z-index set on the panel could ever out-rank a body-level
+// backdrop that needed to sit *above* the header (to blur it) while still
+// staying *below* the panel itself. Moving it out from under header removes
+// that ceiling.
+if (DOM.settingsPanel && DOM.settingsPanel.parentElement !== document.body) {
+    document.body.appendChild(DOM.settingsPanel);
+}
+const setSettingsPanelOpen = (open) => {
+    if (open) closeAllRailPopovers();
+    DOM.settingsPanel.style.display = open ? 'block' : 'none';
+    document.body.classList.toggle('settings-open', open);
+};
 DOM.settingsBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    const isHidden = DOM.settingsPanel.style.display === 'none';
-    DOM.settingsPanel.style.display = isHidden ? 'block' : 'none';
+    setSettingsPanelOpen(DOM.settingsPanel.style.display === 'none');
 });
 // Initialize settings category visibility for the starting view mode
 syncSettingsCategoriesForMode(currentViewMode);
 DOM.settingsCloseBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    DOM.settingsPanel.style.display = 'none';
+    setSettingsPanelOpen(false);
 });
 const mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
 if (mobileSettingsBtn) {
     mobileSettingsBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const isHidden = DOM.settingsPanel.style.display === 'none';
-        DOM.settingsPanel.style.display = isHidden ? 'block' : 'none';
+        setSettingsPanelOpen(DOM.settingsPanel.style.display === 'none');
     });
 }
 window.addEventListener('click', (e) => {
     if (DOM.settingsPanel.style.display === 'block' && !DOM.settingsPanel.contains(e.target) && e.target !== DOM.settingsBtn && e.target !== mobileSettingsBtn && !mobileSettingsBtn?.contains(e.target)) {
-        DOM.settingsPanel.style.display = 'none';
+        setSettingsPanelOpen(false);
     }
 });
+
+if (DOM.settingsPanel) {
+    let dragStart = null;
+    DOM.settingsPanel.addEventListener('touchstart', (e) => {
+        const panelRect = DOM.settingsPanel.getBoundingClientRect();
+        const touchY = e.touches[0].clientY;
+        if (touchY - panelRect.top > 48) return;
+        dragStart = touchY;
+        // .dragging carries `transition: none !important` in CSS, which beats
+        // the base rule's own !important (higher specificity) — setting
+        // style.transition here directly wouldn't, since an inline style
+        // never overrides a stylesheet rule marked !important.
+        DOM.settingsPanel.classList.add('dragging');
+    }, { passive: true });
+    DOM.settingsPanel.addEventListener('touchmove', (e) => {
+        if (dragStart === null) return;
+        const dy = e.touches[0].clientY - dragStart;
+        if (dy > 0) DOM.settingsPanel.style.transform = `translateY(${dy}px)`;
+    }, { passive: true });
+    DOM.settingsPanel.addEventListener('touchend', (e) => {
+        if (dragStart === null) return;
+        const dy = e.changedTouches[0].clientY - dragStart;
+        DOM.settingsPanel.classList.remove('dragging');
+        if (dy > 80) {
+            // Dragged past the dismiss threshold: slide the rest of the way
+            // off-screen instead of just snapping to display:none, and fade
+            // the backdrop out over roughly the same span so it feels like
+            // one continuous motion rather than a hard cut.
+            document.body.classList.remove('settings-open');
+            DOM.settingsPanel.classList.add('dismissing');
+            DOM.settingsPanel.style.transform = '';
+            const onDismissEnd = (ev) => {
+                if (ev.propertyName !== 'transform') return;
+                DOM.settingsPanel.style.display = 'none';
+                DOM.settingsPanel.classList.remove('dismissing');
+                DOM.settingsPanel.removeEventListener('transitionend', onDismissEnd);
+            };
+            DOM.settingsPanel.addEventListener('transitionend', onDismissEnd);
+        } else {
+            // Not far enough — bounce back up to rest.
+            DOM.settingsPanel.style.transform = '';
+        }
+        dragStart = null;
+    });
+    DOM.settingsPanel.addEventListener('touchcancel', () => {
+        if (dragStart === null) return;
+        DOM.settingsPanel.classList.remove('dragging');
+        DOM.settingsPanel.style.transform = '';
+        dragStart = null;
+    });
+}
 const mobileSidebarBackdrop = document.getElementById('mobileSidebarBackdrop');
 // Measure actual header height and expose as CSS custom property so extended
-// sidebar and backdrop start exactly below the sticky header on mobile.
+let lastWasMobileViewport = window.innerWidth <= 768;
+let cachedHeaderHeight = 0;
+
 function updateMobileHeaderHeight() {
     if (window.innerWidth <= 768) {
         const hdr = document.querySelector('header');
         if (hdr) {
-            document.documentElement.style.setProperty(
-                '--mobile-header-height',
-                hdr.getBoundingClientRect().height + 'px'
-            );
+            const h = Math.round(hdr.getBoundingClientRect().height);
+            if (h !== cachedHeaderHeight) {
+                cachedHeaderHeight = h;
+                document.documentElement.style.setProperty('--mobile-header-height', h + 'px');
+            }
         }
     }
 }
+
+function checkMobileSidebarState() {
+    updateMobileHeaderHeight();
+    const isMobile = window.innerWidth <= 768;
+    const container = document.querySelector('.app-container');
+    if (isMobile && container) {
+        if (!lastWasMobileViewport) {
+            container.classList.add('sidebar-collapsed');
+            if (mobileSidebarBackdrop) {
+                mobileSidebarBackdrop.classList.remove('active');
+            }
+        }
+    }
+    lastWasMobileViewport = isMobile;
+}
+
+let resizeRafPending = false;
+window.addEventListener('resize', () => {
+    if (!resizeRafPending) {
+        resizeRafPending = true;
+        requestAnimationFrame(() => {
+            checkMobileSidebarState();
+            closeTagsPopup();
+            positionRailPopovers();
+            if (typeof updateDiscoverToggleLabels === 'function') updateDiscoverToggleLabels();
+            resizeRafPending = false;
+        });
+    }
+});
+
 updateMobileHeaderHeight();
-window.addEventListener('resize', updateMobileHeaderHeight);
+
+if (window.innerWidth <= 768) {
+    const container = document.querySelector('.app-container');
+    if (container) {
+        container.classList.add('sidebar-collapsed');
+        if (mobileSidebarBackdrop) {
+            mobileSidebarBackdrop.classList.remove('active');
+        }
+    }
+}
 
 if (mobileSidebarBackdrop) {
     mobileSidebarBackdrop.addEventListener('click', () => {
@@ -2882,11 +3114,36 @@ if (sidebarToggleBtn) {
 // A comment node marks that original spot so it can be restored precisely.
 const railPopoverState = {}; // groupId -> { popoverEl, placeholderEl, group, btn, open }
 
+// Filter must always stack above Sort, regardless of which the person
+// happened to open first — Object.keys() order previously followed click
+// order, so opening Sort before Filter put Sort on top and let it claim the
+// full remaining viewport height, cutting off Filter underneath it.
+const RAIL_POPOVER_ORDER = ['filterGroup', 'sortGroup'];
+
+// Only two of these ever exist (Filter, Sort) — rather than generic code for
+// an arbitrary number of stacked popovers with a lot of position-bouncing
+// logic to keep them from overlapping, this handles the two known cases
+// directly: Filter is always on top, Sort always below it, and the one rule
+// that actually matters is that neither can render past the other's edge or
+// off the bottom of the screen.
 const positionRailPopovers = () => {
     if (!legacyCollapsedRail) return;
-    const openIds = Object.keys(railPopoverState).filter(id => railPopoverState[id].open);
+    const openIds = Object.keys(railPopoverState)
+        .filter(id => railPopoverState[id].open)
+        .sort((a, b) => RAIL_POPOVER_ORDER.indexOf(a) - RAIL_POPOVER_ORDER.indexOf(b));
     if (!openIds.length) return;
     const railRect = legacyCollapsedRail.getBoundingClientRect();
+    const bottomLimit = window.innerHeight - 12;
+    const gap = 10;
+
+    // The only "physics" kept between the two: whichever one is stacked
+    // below always starts right after wherever the one above it actually
+    // ends (never overlapping), and each is independently capped to
+    // whatever room is left before the bottom of the screen. No shared
+    // height negotiation, no bottom-pinning/bounce — accordion behavior on
+    // the sub-sections inside each popover (see wireSubDetailsAccordion)
+    // keeps their natural height bounded enough that this simple stacking
+    // should hold up fine outside of very small screens.
     let top = railRect.top;
     openIds.forEach((id) => {
         const { popoverEl } = railPopoverState[id];
@@ -2894,9 +3151,9 @@ const positionRailPopovers = () => {
         const left = Math.min(railRect.right + 10, window.innerWidth - width - 12);
         popoverEl.style.left = `${Math.max(left, 12)}px`;
         popoverEl.style.top = `${top}px`;
-        const availableHeight = Math.max(window.innerHeight - 12 - top, 160);
-        popoverEl.style.maxHeight = `${availableHeight}px`;
-        top += Math.min(popoverEl.offsetHeight, availableHeight) + 10;
+        const available = Math.max(bottomLimit - top, 80);
+        popoverEl.style.maxHeight = `${available}px`;
+        top += Math.min(popoverEl.offsetHeight, available) + gap;
     });
 };
 
@@ -2914,6 +3171,9 @@ const closeRailPopover = (groupId) => {
         if (!state.open && popoverEl.parentNode) popoverEl.parentNode.removeChild(popoverEl);
     }, 200);
     positionRailPopovers();
+    if (!Object.keys(railPopoverState).some(id => railPopoverState[id].open)) {
+        document.body.classList.remove('rail-popover-open');
+    }
 };
 
 const closeAllRailPopovers = () => {
@@ -2931,10 +3191,12 @@ const openRailPopover = (btn, groupId) => {
     popoverEl.className = 'rail-popover';
     popoverEl.appendChild(group);
     document.body.appendChild(popoverEl);
+
     group.open = true;
 
     railPopoverState[groupId] = { popoverEl, placeholderEl, group, btn, open: true };
     btn.classList.add('rail-btn-active');
+    document.body.classList.add('rail-popover-open');
     positionRailPopovers();
     requestAnimationFrame(() => {
         popoverEl.classList.add('open');
@@ -2969,10 +3231,180 @@ const wireRailShortcut = (btn, groupId) => {
         }
     });
 };
+// Accordion behavior for sub-sections within a filter/sort group (e.g.
+// Include vs Exclude, or the "Additional Filters" nested inside each one):
+// opening one closes its siblings. This replaces the earlier approach of
+// trying to dynamically negotiate shared height between the Filter and Sort
+// popovers — with only one sub-section open at a time, each popover's own
+// natural height stays bounded and predictable, so simple stacking (see
+// positionRailPopovers) is enough.
+document.querySelectorAll('.sidebar-group > .group-content').forEach((groupContent) => {
+    const siblings = Array.from(groupContent.children)
+        .filter((el) => el.tagName === 'DETAILS' && el.classList.contains('sub-details'));
+    siblings.forEach((d) => {
+        d.addEventListener('toggle', () => {
+            if (Object.keys(railPopoverState).some(id => railPopoverState[id]?.open)) {
+                positionRailPopovers();
+            }
+            if (d.open) {
+                siblings.forEach((other) => {
+                    if (other !== d && other.open) other.open = false;
+                });
+                if (Object.keys(railPopoverState).some(id => railPopoverState[id]?.open)) {
+                    setTimeout(() => d.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+                }
+            }
+        });
+    });
+});
+document.querySelectorAll('.filter-content > details.sub-details').forEach((nested) => {
+    // Nested one-off sections (like "Additional Filters") don't currently
+    // have siblings to be mutually exclusive with, but wiring them the same
+    // way means this keeps working if more get added later.
+    const parent = nested.parentElement;
+    const siblings = Array.from(parent.children)
+        .filter((el) => el.tagName === 'DETAILS' && el.classList.contains('sub-details'));
+    if (siblings.length <= 1) return;
+    nested.addEventListener('toggle', () => {
+        if (nested.open) {
+            siblings.forEach((other) => {
+                if (other !== nested && other.open) other.open = false;
+            });
+        }
+    });
+});
+
 wireRailShortcut(railFilterBtn, 'filterGroup');
 wireRailShortcut(railSortBtn, 'sortGroup');
 
-// Close on outside click / Escape, and keep popovers positioned correctly.
+// Accordion behavior for each popover's top-level submenus (e.g. Include /
+// Exclude / Additional Filters inside Filter): opening one closes its
+// siblings, so a popover's total height stays bounded and predictable
+// instead of everything being able to stack open at once. This applies
+// wherever these sit — in the rail popover or the full sidebar — not just
+// while collapsed.
+document.querySelectorAll('.sidebar-group > .group-content').forEach((groupContent) => {
+    const topLevelSubDetails = Array.from(groupContent.children)
+        .filter(el => el.tagName === 'DETAILS' && el.classList.contains('sub-details'));
+    topLevelSubDetails.forEach((detailsEl) => {
+        detailsEl.addEventListener('toggle', () => {
+            if (!detailsEl.open) return;
+            topLevelSubDetails.forEach((other) => {
+                if (other !== detailsEl && other.open) other.open = false;
+            });
+        });
+    });
+});
+
+// Tap a "N tags" badge (list view) or a "+N" tag-overflow badge (grid view)
+// to see the full subject list in a small popup, instead of only what fit in
+// a hover title tooltip (which doesn't work on tap anyway).
+let openTagsPopupEl = null;
+let activeTagsPopupAnchor = null;
+let tagsPopupBackdropEl = null;
+
+const dismissTagsPopupOnScroll = (e) => {
+    if (openTagsPopupEl && openTagsPopupEl.contains(e.target)) return;
+    closeTagsPopup();
+};
+
+const closeTagsPopup = () => {
+    if (activeTagsPopupAnchor) {
+        activeTagsPopupAnchor.classList.remove('active');
+        activeTagsPopupAnchor = null;
+    }
+    if (openTagsPopupEl && openTagsPopupEl.parentNode) {
+        openTagsPopupEl.parentNode.removeChild(openTagsPopupEl);
+    }
+    if (tagsPopupBackdropEl && tagsPopupBackdropEl.parentNode) {
+        tagsPopupBackdropEl.parentNode.removeChild(tagsPopupBackdropEl);
+    }
+    window.removeEventListener('wheel', dismissTagsPopupOnScroll, { capture: true });
+    window.removeEventListener('scroll', dismissTagsPopupOnScroll, { capture: true });
+    openTagsPopupEl = null;
+    tagsPopupBackdropEl = null;
+};
+const openTagsPopup = (anchorEl) => {
+    if (openTagsPopupEl) {
+        const isSameAnchor = (activeTagsPopupAnchor === anchorEl);
+        closeTagsPopup();
+        if (isSameAnchor) return;
+    }
+    let subjects = [];
+    try {
+        subjects = JSON.parse(anchorEl.dataset.subjects || '[]');
+    } catch {
+        subjects = [];
+    }
+    if (!subjects.length) return;
+
+    if (anchorEl) {
+        activeTagsPopupAnchor = anchorEl;
+        anchorEl.classList.add('active');
+    }
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'tags-popup-backdrop';
+    const dismissHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeTagsPopup();
+    };
+    backdrop.addEventListener('click', dismissHandler, true);
+    backdrop.addEventListener('touchstart', dismissHandler, { passive: false, capture: true });
+    document.body.appendChild(backdrop);
+    tagsPopupBackdropEl = backdrop;
+
+    window.addEventListener('wheel', dismissTagsPopupOnScroll, { passive: true, capture: true });
+    window.addEventListener('scroll', dismissTagsPopupOnScroll, { passive: true, capture: true });
+
+    const popup = document.createElement('div');
+    popup.className = 'tags-popup';
+    popup.innerHTML = subjects.map((s) => `<span class="tag">${escapeHTML(s)}</span>`).join('');
+    document.body.appendChild(popup);
+    openTagsPopupEl = popup;
+    const rect = anchorEl.getBoundingClientRect();
+    // CSS already caps this at min(320px, viewport-24px) — offsetWidth here
+    // reflects that already-clamped size, not an unconstrained one, even for
+    // a book with a huge number of tags.
+    const width = popup.offsetWidth;
+    let left = rect.left;
+    if (left + width > window.innerWidth - 12) left = window.innerWidth - width - 12;
+    left = Math.max(left, 12);
+    let top = rect.bottom + 6;
+    // Further restrict height to whatever room is actually left below the
+    // badge (never more than the CSS max-height cap already allows) — if
+    // there isn't much room below, the popup shrinks and scrolls internally
+    // rather than running off the bottom of the screen.
+    const availableBelow = window.innerHeight - top - 12;
+    if (availableBelow < 120) {
+        // Not enough room below — open upward from the badge instead.
+        const availableAbove = rect.top - 12;
+        const height = Math.min(280, availableAbove - 6);
+        top = rect.top - 6 - height;
+        popup.style.maxHeight = `${height}px`;
+    } else {
+        popup.style.maxHeight = `${Math.min(280, availableBelow)}px`;
+    }
+    popup.style.left = `${left}px`;
+    popup.style.top = `${top}px`;
+    requestAnimationFrame(() => popup.classList.add('open'));
+};
+// This only ever CLOSES the popup on an outside click — opening it happens
+// directly inside handleGridClick below, since calling e.stopPropagation()
+// there (needed to stop the card's own "open details drawer" fallback from
+// also firing) prevents the click from ever bubbling up to a document-level
+// listener in the first place.
+document.addEventListener('click', (e) => {
+    if (openTagsPopupEl && !openTagsPopupEl.contains(e.target) && !e.target.closest('.tags-compact-badge, .tag-overflow')) {
+        closeTagsPopup();
+    }
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeTagsPopup();
+});
+
+
 document.addEventListener('click', (e) => {
     const openIds = Object.keys(railPopoverState).filter(id => railPopoverState[id].open);
     if (!openIds.length) return;
@@ -3043,6 +3475,15 @@ const handleGridClick = (e, getBookFn) => {
     if (!workKey) return;
     const b = getBookFn(workKey);
     if (!b) return;
+    // 0. Tag-count badge (list view) or "+N" overflow badge (grid view)
+    // clicked — show the full tag list, and stop it from falling through to
+    // "open details drawer" below.
+    const tagsPopupAnchor = e.target.closest('.tags-compact-badge, .tag-overflow');
+    if (tagsPopupAnchor) {
+        e.stopPropagation();
+        if (tagsPopupAnchor.dataset.subjects) openTagsPopup(tagsPopupAnchor);
+        return;
+    }
     // 1. Tag clicked
     const tagEl = e.target.closest('.tag');
     if (tagEl) {
@@ -3135,22 +3576,22 @@ function updateDiscoverToggleLabels() {
     if (window.innerWidth > 768) {
         // Always restore full labels on desktop
         DOM.toggleTrendingBtn.textContent = 'Trending Books';
-        DOM.toggleGenresBtn.textContent   = 'Popular Genres';
+        DOM.toggleGenresBtn.textContent = 'Popular Genres';
         return;
     }
     if (DOM.toggleTrendingBtn.classList.contains('active')) {
         DOM.toggleTrendingBtn.textContent = 'Trending Books';
-        DOM.toggleGenresBtn.textContent   = 'Popular Genres';
+        DOM.toggleGenresBtn.textContent = 'Popular Genres';
     } else {
         DOM.toggleTrendingBtn.textContent = 'Trending Books';
-        DOM.toggleGenresBtn.textContent   = 'Popular Genres';
+        DOM.toggleGenresBtn.textContent = 'Popular Genres';
     }
 }
 
 // Observe active class changes on the toggle buttons to update labels reactively
 if (DOM.toggleTrendingBtn && DOM.toggleGenresBtn) {
     new MutationObserver(updateDiscoverToggleLabels).observe(DOM.toggleTrendingBtn, { attributes: true, attributeFilter: ['class'] });
-    new MutationObserver(updateDiscoverToggleLabels).observe(DOM.toggleGenresBtn,   { attributes: true, attributeFilter: ['class'] });
+    new MutationObserver(updateDiscoverToggleLabels).observe(DOM.toggleGenresBtn, { attributes: true, attributeFilter: ['class'] });
 }
 window.addEventListener('resize', updateDiscoverToggleLabels);
 updateDiscoverToggleLabels();
