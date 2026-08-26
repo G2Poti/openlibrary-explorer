@@ -1,6 +1,83 @@
 # Open Library Catalog - Project Changelog & Revision History
 
-## Version 1.6 - Default Mobile Layout Switch & UX Polish (Current)
+## Version 1.7 - Compact Desktop Mode, Overlayed Sidebar, Instant Discover Caching, Progressive Physics & Clean Synopses (Current)
+
+**Compact Desktop Mode & Overlayed Sidebar System**
+- **Compact Desktop Navigation:** Added an optional Compact Mode merging navigation, search, and settings directly into the content header (`.results-header`), featuring 62px header parity, a 3-column grid, and calibrated graceful degradation.
+- **Floating Overlayed Sidebar:** Introduced a desktop overlay sidebar that glides over content with background blur, zero-jerk animations, synchronized reveals, and full support for Left/Right docking.
+- **Configurable Sidebar Position:** Seamlessly switch sidebar docking between Left and Right across all layout modes with pre-paint persistence and smart control alignment.
+- **Desktop Progressive Sticky Header:** Implemented continuous 0–100% scroll physics on desktop that smoothly extends header navigation into view during down-scrolling with zero-flash activation (Alternate Layout only).
+
+**Settings Modal Reorganization & Defaults**
+- **Reorganized Settings Tabs:** Structured Settings into **Preferences** (Appearance) and **Advanced** (Compact Mode, Alternate Layout, Sidebar Position, Clean Synopses, Clean Subjects).
+- **One-Click Reset to Default:** Added a dedicated reset action restoring all settings to original defaults while safely preserving all saved Library bookmarks.
+- **Updated First-Run Defaults:** Compact Mode ON and Overlayed Sidebar ON are now the first-run defaults.
+
+**Discover Dashboards & Instant 0ms RAM Prewarming**
+- **60 Trending Books & Curated Genre Alcove:** Expanded the trending catalog to 60 books and curated 12 genre shelves housed in a rich glassmorphic library alcove backdrop with responsive desktop-to-mobile scaling.
+- **Instant 0ms Cover RAM Prewarming:** Concurrent `Promise.all` IndexedDB prewarming loads trending and genre covers directly into in-memory RAM at boot, delivering instant, single-frame 0ms cover rendering on startup and tab switching.
+- **Sequential Reading-Order Loading:** Search result covers hydrate in strict reading order (left→right, top→bottom) via a 6-worker sliding window with IDB stall defense.
+
+**Search, Autocomplete & Clean Synopses Engine**
+- **Typed-Text First Suggestions & Exact-Match Priority:** Autocomplete always pins the typed query as row 0 with live work counts, prioritizing exact matches, supporting `Tab` autocompletion, and eliminating ghost previews.
+- **Clean Synopses & Library Subjects:** Added an intelligent synopsis sanitizer for book descriptions and a dedicated **Clean Subjects** option for My Library that automatically formats tags into clean title-case (preserving minor lowercase conjunctions).
+- **Zero-Filter Search Protection:** Search buttons automatically grey out and disable when no filters or search terms are entered, preventing empty searches on click or Enter keypress.
+- **Defensive Translation Pipeline & Boot Resilience:** Rebuilt translation pipeline with strict language matching, progressive viewport lookups, synopsis priority queuing, and timeout-guarded boot resilience.
+
+**Mobile Experience & Layout Polishing**
+- **Symmetric Mobile Header & Desktop Resize Safety:** Symmetrically aligned search navigation and centered the 📚 brand icon above the 42px rail, with desktop mouse safety preserving grid mode on resize.
+- **Gesture Reliability & Tucked Swipe Hint:** Refined swipe drawer touch handling to eliminate accidental ear nudges and input focus locks during tap interactions, tucking the swipe hint flush against the screen edge.
+- **General Tweaks & Quality-of-Life Polish:** Numerous subtle layout alignments, tooltip anti-clipping safeguards, theme transition enhancements, and minor bug fixes across desktop and mobile modes.
+
+---
+
+## Version 1.6c - Header Streamlining, Luminous Hover Feedback, List Tag Optimization & Persistent Caching
+
+**Header & Settings Streamlining**
+- **Header Theme Switcher Removal:** Removed the standalone theme toggle from the top header to reduce clutter; Dark Mode preference is configured exclusively in Settings under Preferences -> General.
+- **Theme Persistence Across Sessions:** Persisted user theme preference in storage (`ole_theme`), guaranteeing chosen theme is retained across page reloads and browser sessions.
+
+**Visual Polish & Hover Experience**
+- **Luminous Card Hover Accent & Elevation Glow:** Enhanced `.book-card:hover` and `.book-grid.list-view .book-card:hover` under `@media (hover: hover)` with a vibrant accent border (`border-color: rgba(37, 99, 235, 0.45)` in light mode, `rgba(56, 189, 248, 0.55)` in dark mode) and elevated ambient glow shadow for immediate visual identification of the hovered card.
+- **Universal Scroll Suppression:** Suppressed hover transforms and pointer events during active scrolling across both window and main containers, preventing hover jitter and maintaining 60fps scrolling.
+
+**List-View Tag Space Utilization**
+- **Zero-Overhead Tag Expansion:** Increased desktop List View tag row capacity to 80 characters, allowing 4–5 tags to naturally display across the wide list column before collapsing to the `+N` overflow badge with zero layout calculation overhead.
+
+**Persistent Caching & Boot Performance**
+- **IndexedDB Trending Storage & Boot Preloading:** Migrated trending books cache to IndexedDB (`ole_trending_cache_v3`) and preloaded trending books and genre shelves into RAM during session boot for instant (0ms) Home/Discover rendering.
+- **Edition-Based Cover Caching:** Extended background cover caching in IndexedDB to support edition keys (`OL...M`) via `/b/olid/` alongside standard numeric IDs (`/b/id/`).
+
+---
+
+## Version 1.6b - Dynamic Tag Packing, Zero-Jump Library, Settings Tabs & UX Polish
+
+**Card Tag Packing & Multi-Row Architecture**
+- **Continuous Dynamic Tag Packing:** Replaced rigid capacity tiers with a continuous linear formula (`Math.max(28, Math.floor((cardWidth - 130) / 6.2))`), allowing tags to dynamically expand across wide cards (packing 3+ tags per row) and contract smoothly without clipping.
+- **2-Row Grid vs. 1-Row List View:** Standard grid cards format tags into up to 2 clean rows with greedy backfilling; desktop List View cards strictly format into 1 single horizontal row (`packTagsIntoOneRow`).
+- **Context-Aware `+N` Overflow Popups:** Clicking `+N` on cards or in the Details Drawer now exclusively displays the remaining *un-displayed* tags, eliminating duplicate repetitions of tags already visible on screen.
+
+**Library View Stability & Zero-Jump Unhearting**
+- **In-Place DOM Card Removal:** Unhearting a book in Library view directly removes only the target card element from the DOM (`cardEl.remove()`) without wiping the grid or re-rendering chunks, preserving the scroll position with 100% precision (0px jump) on both mobile and desktop.
+- **Dynamic Count & Empty State Sync:** Immediately updates header count text (`Showing all N...` / `Showing X of Y (filtered)`) and transitions cleanly to the empty library message when the last book is unhearted.
+- **Empty Library Toggle-All State:** Ensured the "Add/Remove All" button is consistently disabled and greyed out (`opacity: 0.4`) when the library is empty across both collapsed and expanded sidebar views.
+
+**Details Drawer & Persistent Synopsis Caching**
+- **Compact Horizontal Tag Pills:** Restyled `#detailsSubjects` with flexible horizontal wrapping and capped the visible tag budget to ~2–3 compact rows with a `+N` badge for the remainder, eliminating full-width vertical stretching.
+- **Persistent Synopsis Caching (IndexedDB + RAM):** Upgraded book descriptions to persist in IndexedDB (`ole_desc_`) with a 30-day TTL for instant (0ms) re-opens.
+- **Background Trending Prefetching:** Automatically prefetches and caches synopses for the 10 Home/Discover trending books on session boot, operating safely under OpenLibrary rate limits (<10% of 1 minute's budget).
+
+**Settings Panel Tabs Reorganization**
+- **Two-Tab Settings Layout:** Reorganized the settings panel into two dedicated tabs ("Preferences" and "Advanced") on both desktop and mobile, eliminating vertical scroll clutter and providing a cleaner configuration experience.
+
+**Visual Polish & High-Performance Scrolling**
+- **Title & Author Padding Buffer:** Applied generous right padding to `.book-title` and `.book-author` (96px / 3× heart button width on desktop, 48px / 1.5× on mobile) to guarantee long titles wrap cleanly before encroaching on the action buttons.
+- **Hardware-Accelerated 2D Cover Hover & Scroll Stability:** Replaced 3D perspective transforms with smooth 2D hover zoom (`transform: scale(1.04)`), and added an active `.is-scrolling` pointer-events suppression class to guarantee 60fps scrolling without hover thrashing or blank compositor layer drops.
+- **Theme Switcher Sun Icon Contrast:** Enhanced the sun icon with vivid amber-gold (`#fbbf24`) and dual drop-shadows for high-contrast visibility against both light and dark header backgrounds.
+
+---
+
+## Version 1.6 - Default Mobile Layout Switch & UX Polish
 
 **Default Mobile Layout & Gesture Experience**
 - **Default Mobile Interface:** Swapped default mobile mode so the site boots natively into the full-screen, gesture-driven sidebar (FOUC-free on initial load). Settings toggle defaults to OFF (which switches back to the legacy rail layout).

@@ -25,6 +25,7 @@ html {
 :root {
     --main-bg: #fdfdfc;
     --sidebar-bg: #f1f5f9;
+    --results-header-bg: #e8edf5;
     --card-bg: #ffffff;
     --selection-bar-bg: rgba(255, 255, 255, 0.78);
     --text: #1e293b;
@@ -43,6 +44,7 @@ html {
 [data-theme="dark"] {
     --main-bg: #121212;
     --sidebar-bg: #1a1b1e;
+    --results-header-bg: #151619;
     --card-bg: #25262b;
     --selection-bar-bg: rgba(37, 38, 43, 0.80);
     --text: #e2e8f0;
@@ -73,9 +75,11 @@ body {
 
 header {
     background: var(--header-bg);
-    padding: 1rem 2rem;
-    display: flex;
-    justify-content: space-between;
+    padding: 0 1.5rem;
+    height: 62px;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: minmax(max-content, 1fr) minmax(0, 580px) minmax(max-content, 1fr);
     align-items: center;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
     z-index: 100;
@@ -84,65 +88,100 @@ header {
 }
 
 .brand {
+    grid-column: 1;
+    justify-self: start;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.65rem;
+    flex-shrink: 0;
+    margin-right: 1.5rem;
+}
+
+.brand .logo-icon {
+    -webkit-text-fill-color: initial;
+    font-size: 1.85rem;
+    line-height: 1;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.brand-text {
     display: flex;
     flex-direction: column;
-    gap: 0.1rem;
-    flex-shrink: 0;
+    gap: 1px;
+    justify-content: center;
 }
 
 .brand h1 {
     margin: 0;
-    font-size: 1.35rem !important;
+    font-size: 1.15rem !important;
     font-weight: 800;
-    letter-spacing: -0.5px;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
+    letter-spacing: -0.4px;
     background: linear-gradient(to right, #e0f2fe, #38bdf8);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-}
-
-.logo-icon {
-    -webkit-text-fill-color: initial;
-    font-size: 1.3rem;
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+    line-height: 1.15;
 }
 
 .brand-subtitle {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     opacity: 0.65;
     margin: 0;
     color: #cbd5e1;
     font-weight: 500;
+    line-height: 1.15;
 }
 
 .header-controls {
+    grid-column: 3;
+    justify-self: end;
     display: flex;
     align-items: center;
-    gap: 1.25rem;
-    height: 30px;
+    gap: 0.75rem;
+    height: 36px;
+    margin-left: 1.5rem;
 }
 
-.icon-btn-top {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 6px;
-    padding: 4px 5px;
-    height: 26px;
-    box-sizing: border-box;
-    color: #e2e8f0;
-    cursor: pointer;
-    transition: all 0.2s;
+header #settingsBtn,
+.header-controls .icon-btn-top {
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    flex: 0 0 36px !important;
+    aspect-ratio: 1 / 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s, border-color 0.2s, transform 0.15s !important;
     text-decoration: none;
 }
 
-.icon-btn-top:hover {
-    background: rgba(255, 255, 255, 0.2);
+header #settingsBtn:hover,
+.header-controls .icon-btn-top:hover {
+    background: rgba(255, 255, 255, 0.24) !important;
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    color: #ffffff !important;
     transform: translateY(-1px);
+}
+
+header #settingsBtn svg,
+.header-controls .icon-btn-top svg {
+    width: 18px !important;
+    height: 18px !important;
 }
 
 .toggle-switch-wrapper {
@@ -197,16 +236,17 @@ header {
 
 .slider:before {
     background-color: #fff;
-    bottom: 3px;
     content: "";
     height: 20px;
-    left: 3px;
+    left: 2px;
     position: absolute;
-    transition: .4s;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: transform .3s cubic-bezier(0.16, 1, 0.3, 1), background-color .3s;
     width: 20px;
     border-radius: 50%;
     z-index: 2;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 input:checked+.slider {
@@ -214,7 +254,7 @@ input:checked+.slider {
 }
 
 input:checked+.slider:before {
-    transform: translateX(24px);
+    transform: translateY(-50%) translateX(24px);
 }
 
 input:checked+.slider.url-slider {
@@ -232,7 +272,8 @@ input:checked+.slider.url-slider {
 }
 
 .slider .icon.sun {
-    color: #facc15;
+    color: #fbbf24;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 3px rgba(251, 191, 36, 0.9));
 }
 
 .slider .icon.moon {
@@ -264,29 +305,10 @@ input:checked+.slider.danger-slider {
     transform: scale(0.95);
 }
 
-/* Slightly larger settings gear / theme-switch icons in the top-right header */
+/* Slightly larger settings gear icon in the top-right header */
 .header-controls .icon-btn-top {
     height: 30px;
     padding: 5px 6px;
-}
-
-.header-controls .theme-switch {
-    width: 54px;
-    height: 29px;
-}
-
-.header-controls .theme-switch .slider:before {
-    width: 23px;
-    height: 23px;
-}
-
-.header-controls .theme-switch input:checked+.slider:before {
-    transform: translateX(25px);
-}
-
-.header-controls .theme-switch .slider .icon {
-    width: 14px;
-    height: 14px;
 }
 
 .app-container {
@@ -311,6 +333,18 @@ aside.filters {
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s, opacity 0.2s;
 }
 
+/* Desktop: permanently reserve the vertical-scrollbar gutter inside the
+   sidebar. Without it, the gutter appears/disappears as content wraps at
+   different widths, narrowing/widening the sticky header mid-animation —
+   which read as the sidebar header "shifting slightly" whenever the
+   sidebar opened. With a stable gutter the inner width is constant from
+   the first animation frame to the last. */
+@media (min-width: 769px) {
+    aside.filters {
+        scrollbar-gutter: stable;
+    }
+}
+
 .sidebar-collapsed aside.filters {
     width: 0 !important;
     padding: 0 !important;
@@ -329,6 +363,41 @@ body.legacy-layout .results-header {
 
 [data-theme="dark"] body.legacy-layout .results-header {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+@media (min-width: 769px) {
+    body:not(.legacy-layout) .results-header.desktop-sticky-active {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: var(--selection-bar-bg, rgba(255, 255, 255, 0.78));
+        backdrop-filter: blur(10px) saturate(1.4);
+        -webkit-backdrop-filter: blur(10px) saturate(1.4);
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, calc(0.12 * var(--desktop-sticky-progress, 0)));
+        transform: translateY(calc((var(--desktop-sticky-progress, 0) - 1) * 100%));
+        opacity: var(--desktop-sticky-progress, 0);
+        pointer-events: none;
+    }
+
+    body:not(.legacy-layout) .results-header.desktop-sticky-active.desktop-sticky-extending {
+        pointer-events: auto;
+        opacity: calc(0.2 + 0.8 * var(--desktop-sticky-progress, 0));
+        transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.28s ease;
+    }
+
+    body.reduce-animations:not(.legacy-layout) .results-header {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 100 !important;
+        transform: none !important;
+        opacity: 1 !important;
+        transition: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        background: var(--results-header-bg) !important;
+        pointer-events: auto !important;
+    }
 }
 
 body.legacy-layout .sidebar-sticky-header {
@@ -375,48 +444,335 @@ body.legacy-layout .sidebar-collapsed aside.filters {
    and fade it out immediately when collapsing, to avoid a mid-transition pop-in. */
 body.legacy-layout aside.filters>*:not(.sidebar-sticky-header):not(.legacy-collapsed-rail) {
     opacity: 1;
-    transition: opacity 0.15s ease 0.2s;
+    transition: opacity 0.28s ease;
 }
 
 body.legacy-layout .sidebar-collapsed aside.filters>*:not(.sidebar-sticky-header):not(.legacy-collapsed-rail) {
     opacity: 0 !important;
-    pointer-events: none;
-    transition: opacity 0.1s ease;
+    pointer-events: none !important;
+    transition: opacity 0.1s ease 0s !important;
 }
 
 body.legacy-layout .sidebar-sticky-header #sidebarToggleBtn {
     margin-right: 0 !important;
 }
 
+/* Default-mode header jump fix: #viewSavedBtn (flex:1) sits before the
+   toggle in DOM order and stretches/shrinks across the rail↔expanded
+   transition, dragging the toggle inward a few px each time. Pinning the
+   toggle as the first visual item anchors it to the sidebar's leading edge
+   in both states; My Library stretches harmlessly to its right. */
+@media (min-width: 769px) {
+    body.legacy-layout .sidebar-sticky-header #sidebarToggleBtn {
+        order: -1;
+    }
+}
+
 body.legacy-layout .sidebar-collapsed .sidebar-sticky-header {
-    padding: 1rem 10px;
+    padding: 0.65rem 10px;
     margin: 0 -10px 0 -10px;
 }
 
 /* JS toggles this class on <body> and keeps it on for the duration of the width
-   transition (200ms) so the other buttons stay out-of-flow/invisible until the
-   sidebar is wide enough, then they pop in and fade to visible. */
+   transition so the other buttons stay out-of-flow/invisible until the
+   sidebar is wide enough, then they fade in together. */
 body.legacy-layout .sidebar-sticky-header>*:not(#sidebarToggleBtn) {
     opacity: 1;
-    transition: opacity 0.15s ease;
+    transition: opacity 0.28s ease;
 }
 
 body.legacy-layout .sidebar-collapsed .sidebar-sticky-header>*:not(#sidebarToggleBtn) {
     opacity: 0 !important;
-    pointer-events: none;
+    pointer-events: none !important;
     position: absolute !important;
-    transition: none;
+    transition: opacity 0.1s ease 0s !important;
 }
 
-body.legacy-sidebar-transitioning .sidebar-sticky-header>*:not(#sidebarToggleBtn) {
+body.legacy-sidebar-transitioning .sidebar-sticky-header>*,
+body.legacy-sidebar-transitioning aside.filters>*:not(.sidebar-sticky-header):not(.legacy-collapsed-rail),
+body.legacy-sidebar-transitioning .sidebar-footer-branding,
+body.legacy-sidebar-transitioning .mobile-sidebar-branding,
+body.overlay-sidebar-transitioning .sidebar-sticky-header>*,
+body.overlay-sidebar-transitioning aside.filters>*:not(.sidebar-sticky-header):not(.legacy-collapsed-rail),
+body.overlay-sidebar-transitioning .sidebar-footer-branding,
+body.overlay-sidebar-transitioning .mobile-sidebar-branding {
     opacity: 0 !important;
-    pointer-events: none;
-    position: absolute !important;
-    transition: none;
+    pointer-events: none !important;
+    transition: none !important;
 }
 
 .legacy-collapsed-rail {
     display: none;
+}
+
+/* ── Legacy Layout switch ON: combined "Reset Filters and Sort" ────────── */
+/* Runtime polarity note: the Legacy Layout settings switch ON removes the
+   body.legacy-layout class (applyLegacyLayout is called with !checked). So
+   "switch ON" == body WITHOUT .legacy-layout, desktop only. In that state
+   Reset + Find Books are replaced by the single combined reset button;
+   Find Books is redundant with the always-visible header search. */
+#resetFiltersSortBtn {
+    display: none;
+    flex: 1 !important;
+    justify-content: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (min-width: 769px) {
+    body:not(.legacy-layout) #resetFiltersSortBtn {
+        display: flex !important;
+    }
+
+    body:not(.legacy-layout) #resetBtn,
+    body:not(.legacy-layout) #searchBtn {
+        display: none !important;
+    }
+}
+
+/* ── Overlayed Sidebar (desktop, Legacy Layout switch ON only) ─────────── */
+/* The expanded sidebar floats OVER the content instead of squeezing it.
+   JS adds body.overlayed-sidebar only when both the Overlayed Sidebar
+   toggle AND the Legacy Layout toggle are on, on a desktop viewport — so
+   none of these rules can ever affect the default rail layout or mobile. */
+.sidebar-overlay-backdrop {
+    display: none;
+}
+
+@media (min-width: 769px) {
+    body.overlayed-sidebar .app-container {
+        position: relative;
+    }
+
+    /* While the overlay is engaged the sidebar is ALWAYS absolutely
+   positioned: expanded, collapsed, and mid-transition. This is what kills
+   the close-jerk: the old rule flipped the panel back into flex flow the
+   instant collapsing started, so the shrinking panel squeezed the content
+   on its way out. Anchored absolutely, the width animates IN PLACE at the
+   docked edge and the content column never moves a pixel in any mode, on
+   either side. Default mode: the collapsed 57px rail floats over its
+   permanently reserved strip (see reservation rules below). Switch-ON:
+   collapsed = width 0 = fully hidden, same as stock. */
+    body.overlayed-sidebar aside.filters {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 502;
+        height: auto;
+        box-shadow: 0 0 45px rgba(0, 0, 0, 0.28);
+    }
+
+    /* Right-side variant: mirror the dock edge and the border side. */
+    body.overlayed-sidebar.sidebar-right aside.filters {
+        left: auto;
+        right: 0;
+        border-right: none;
+        border-left: 1px solid var(--border);
+        box-shadow: 0 0 45px rgba(0, 0, 0, 0.28);
+    }
+
+    /* Left-side sidebar open: slide the Discover tabs just right of the
+   floating panels edge - their tail used to peek out from underneath it.
+   Animates in sync with the panels own slide. */
+    body.overlayed-sidebar:not(.sidebar-right) #discoverDashboardToggles {
+        margin-left: 0;
+        transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.overlayed-sidebar:not(.sidebar-right).legacy-layout .app-container:not(.sidebar-collapsed) #discoverDashboardToggles {
+        margin-left: 283px;
+    }
+
+    body.overlayed-sidebar:not(.sidebar-right):not(.legacy-layout) .app-container:not(.sidebar-collapsed) #discoverDashboardToggles {
+        margin-left: 340px;
+    }
+
+    /* Right-side sidebar open: mirror - the right header group slides LEFT of
+   the panels edge instead of hiding underneath it. */
+    body.overlayed-sidebar.sidebar-right .results-header-right {
+        margin-right: 0;
+        transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.overlayed-sidebar.sidebar-right:not(.legacy-layout) .app-container:not(.sidebar-collapsed) .results-header-right {
+        margin-right: var(--ole-rhdr-gap, 340px);
+    }
+
+    body.overlayed-sidebar.sidebar-right.legacy-layout .app-container:not(.sidebar-collapsed) .results-header-right {
+        margin-right: var(--ole-rhdr-gap, 283px);
+    }
+
+
+
+    /* Default mode (rail layout): the collapsed rails footprint is
+       RESERVED PERMANENTLY while the overlay is engaged. The rail floats
+       (absolute) in every state, so this strip is what keeps the content
+       column fixed at the same offset whether the sidebar is a 57px rail,
+       a 340px overlay, or animating between them. */
+    body.overlayed-sidebar.legacy-layout .app-container {
+        padding-left: 57px;
+    }
+
+    body.overlayed-sidebar.sidebar-right.legacy-layout .app-container {
+        padding-left: 0;
+        padding-right: 57px;
+    }
+
+    /* Blurred dim layer behind the floating sidebar. Shown only while the
+       sidebar is expanded; clicking it closes the sidebar. The backdrop
+       precedes .app-container in the DOM, so :has() looks ahead at the
+       container's collapse state (the codebase already relies on :has()
+       for the discover-dashboard toggle guard). */
+    body.overlayed-sidebar .sidebar-overlay-backdrop:has(~ .app-container:not(.sidebar-collapsed)) {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 500;
+        background: rgba(15, 23, 42, 0.18);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+
+    /* The results header stacks ABOVE the backdrop so it stays crisp and
+       fully interactive while everything else behind the blur dims. The
+       TOP site header gets the same treatment when Compact Mode is OFF
+       (it doesn't exist visually under Compact Mode). */
+    body.overlayed-sidebar .results-header {
+        position: relative;
+        z-index: 501;
+    }
+
+    body.overlayed-sidebar header {
+        position: relative;
+        z-index: 501;
+    }
+
+    /* While the overlay is open it covers the outer toggle's home in the
+       results header — hide that one and surface the delegate inside the
+       sidebar header instead. Purely visual: the delegate clicks
+       #sidebarToggleBtn, so collapse state keeps one source of truth.
+       Legacy-switch-ON only: in default mode the REAL toggle already sits
+       inside the sidebar header, so the delegate would duplicate it. */
+    body.overlayed-sidebar:not(.legacy-layout) .app-container:not(.sidebar-collapsed) .results-header #sidebarToggleBtn {
+        display: none !important;
+    }
+
+    #sidebarOverlayCloseBtn {
+        display: none;
+        flex: 0 0 36px;
+        width: 36px;
+        padding: 0 !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    body.overlayed-sidebar:not(.legacy-layout) .app-container:not(.sidebar-collapsed) #sidebarOverlayCloseBtn {
+        display: flex !important;
+    }
+
+    body.overlayed-sidebar.sidebar-right #sidebarOverlayCloseBtn svg {
+        transform: scaleX(-1);
+    }
+
+    /* ── Overlay-mode top-layer overrides ────────────────────────────────
+       The floating sidebar stack is: backdrop(500) < results-header(501) <
+       sidebar(502). Every modal/popover must paint ABOVE all three while
+       the overlay is engaged, or it gets blurred by the backdrop and/or
+       visually cut off by the raised results header. Scoped to
+       body.overlayed-sidebar so non-overlay stacking stays untouched. */
+    body.overlayed-sidebar .settings-dropdown {
+        z-index: 700 !important;
+    }
+
+    body.overlayed-sidebar .details-drawer-overlay {
+        z-index: 600;
+    }
+
+    body.overlayed-sidebar .details-drawer-container {
+        z-index: 601;
+    }
+
+    body.overlayed-sidebar .tags-popup-backdrop {
+        z-index: 649;
+    }
+
+    /* Right-side overlay open: the settings dropdown must clear the floating
+       panel - anchor it just to the panel's LEFT instead of the viewport
+       edge it would otherwise share with the sidebar. The panel lives
+       AFTER the dropdown in the DOM, so :has() looks ahead (same pattern
+       as the backdrop rule). */
+    body.overlayed-sidebar.sidebar-right .settings-dropdown:has(~ .app-container:not(.sidebar-collapsed)) {
+        right: 360px;
+    }
+
+    /* Right-side overlay + collapsed rail (default mode): keep the settings
+       dropdown clear of the thin floating button strip as well. Switch-ON
+       collapse hides the sidebar entirely, so no offset is needed there. */
+    body.overlayed-sidebar.sidebar-right.legacy-layout .settings-dropdown:has(~ .app-container.sidebar-collapsed) {
+        right: 80px;
+    }
+
+    /* Overlay slide: hide sidebar contents (groups + header buttons) for
+       the duration of the open/close animation. Only the pinned toggle stays visible;
+       everything fades back in once the panel settles (class removed by the settle handler). */
+    body.overlay-sidebar-transitioning aside.filters>*:not(.sidebar-sticky-header):not(.legacy-collapsed-rail),
+    body.overlay-sidebar-transitioning .sidebar-sticky-header>*:not(#sidebarToggleBtn):not(#sidebarOverlayCloseBtn) {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transition: none !important;
+    }
+
+    /* Reveal-timing unification: under the overlay, ALL sidebar content
+       (groups, header buttons, branding) fades in together with a visible
+       0.28s ease starting 0.28s after the slide completes - smooth, clearly
+       visible, never mid-expand. */
+    body.overlayed-sidebar aside.filters>*:not(.sidebar-sticky-header):not(.legacy-collapsed-rail) {
+        transition: opacity 0.28s ease !important;
+    }
+
+    body.overlayed-sidebar .sidebar-sticky-header>*:not(#sidebarToggleBtn):not(#sidebarOverlayCloseBtn) {
+        transition: opacity 0.28s ease !important;
+    }
+
+    body.overlayed-sidebar .sidebar-collapsed aside.filters>*:not(.sidebar-sticky-header):not(.legacy-collapsed-rail),
+    body.overlayed-sidebar .sidebar-collapsed .sidebar-sticky-header>*:not(#sidebarToggleBtn):not(#sidebarOverlayCloseBtn) {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transition: opacity 0.1s ease 0s !important;
+    }
+
+    body.overlayed-sidebar .mobile-sidebar-branding {
+        animation: oleBrandingFade 0.28s ease 0.28s backwards !important;
+    }
+
+    body.overlayed-sidebar .tags-popup {
+        z-index: 650;
+    }
+
+    /* ── Overlay sidebar-header arrangement ─────────────────────────────
+       Only the close button and "Reset Filters and Sort" live here. My
+       Library / Add-Remove All deliberately STAY in the results header. */
+    body.overlayed-sidebar .sidebar-sticky-header #sidebarOverlayCloseBtn {
+        order: -2;
+    }
+
+    body.overlayed-sidebar .sidebar-sticky-header #resetFiltersSortBtn {
+        order: -1;
+        flex: 1 1 auto !important;
+        justify-content: center;
+    }
+
+    /* Right-side mirror: reading left→right becomes Reset Filters → Toggle,
+       so the close control still hugs the screen-facing corner. */
+    body.overlayed-sidebar.sidebar-right .sidebar-sticky-header #resetFiltersSortBtn {
+        order: 1;
+    }
+
+    body.overlayed-sidebar.sidebar-right .sidebar-sticky-header #sidebarOverlayCloseBtn {
+        order: 2;
+    }
 }
 
 body.legacy-layout .sidebar-collapsed .legacy-collapsed-rail {
@@ -451,12 +807,19 @@ body.legacy-layout .sidebar-collapsed .legacy-collapsed-rail {
    made settings pop in noticeably earlier than its four rail neighbors.
    Making all of them appear immediately, with no fade/delay, keeps every
    rail icon consistent with how settings already looked. */
-body.legacy-layout .legacy-collapsed-rail>* {
-    opacity: 1;
+/* Instant hide during transition/collapse */
+body.legacy-sidebar-transitioning .legacy-collapsed-rail>*,
+body.overlay-sidebar-transitioning .legacy-collapsed-rail>* {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: none !important;
 }
 
-body.legacy-sidebar-transitioning .legacy-collapsed-rail>* {
+/* Settle reveal in Legacy OFF (Stock Rail Mode): fade in rail buttons once settled at 57px */
+body.legacy-layout.sidebar-collapsed:not(.legacy-sidebar-transitioning):not(.overlay-sidebar-transitioning) .legacy-collapsed-rail>* {
     opacity: 1;
+    pointer-events: auto;
+    transition: opacity 0.2s ease;
 }
 
 /* Floating popovers opened by the collapsed-rail Filter/Sort shortcuts.
@@ -473,13 +836,31 @@ body.legacy-sidebar-transitioning .legacy-collapsed-rail>* {
     border-radius: 10px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
     z-index: 200;
-    overflow: hidden;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
     opacity: 0;
     transform: translateX(-6px);
     transition: opacity 0.18s ease, transform 0.18s ease, top 0.2s ease, left 0.2s ease;
     pointer-events: none;
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
+}
+
+.rail-popover::-webkit-scrollbar {
+    width: 6px;
+}
+
+.rail-popover::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 3px;
+}
+
+.rail-popover::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 [data-theme="dark"] .rail-popover {
@@ -492,28 +873,27 @@ body.legacy-sidebar-transitioning .legacy-collapsed-rail>* {
     pointer-events: auto;
 }
 
-.rail-popover>.sidebar-group {
+.rail-popover > .sidebar-group {
     margin: 0 !important;
     border: none !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
+    display: block !important;
+    width: 100%;
 }
 
-.rail-popover>.sidebar-group>summary {
+.rail-popover > .sidebar-group > summary {
     position: sticky;
     top: 0;
     background: var(--sidebar-bg);
-    z-index: 1;
+    z-index: 10;
     flex-shrink: 0;
 }
 
-.rail-popover>.sidebar-group>.group-content {
-    flex: 1;
+.rail-popover > .sidebar-group > .group-content {
+    overflow: visible !important;
+    display: block !important;
     min-height: 0;
-    overflow-y: auto;
 }
 
 .legacy-collapsed-rail .rail-btn.rail-btn-active {
@@ -542,7 +922,7 @@ body.legacy-sidebar-transitioning .legacy-collapsed-rail>* {
 
 /* Restored classes for view toggles and bookmarks buttons */
 .nav-btn {
-    background: transparent;
+    background: #ffffff;
     border: 1px solid var(--border);
     color: var(--text);
     padding: 0 1rem;
@@ -561,14 +941,22 @@ body.legacy-sidebar-transitioning .legacy-collapsed-rail>* {
     white-space: nowrap;
 }
 
+[data-theme="dark"] .nav-btn {
+    background: #25272c;
+    border-color: var(--border);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
 #toggleAllBtn {
     padding: 0 0.8rem;
 }
 
-#toggleAllBtn.disabled {
-    opacity: 0.4;
-    cursor: default;
-    pointer-events: none;
+#toggleAllBtn.disabled,
+#toggleAllBtn:disabled {
+    opacity: 0.4 !important;
+    cursor: default !important;
+    pointer-events: none !important;
 }
 
 .nav-btn svg {
@@ -577,7 +965,11 @@ body.legacy-sidebar-transitioning .legacy-collapsed-rail>* {
 }
 
 .nav-btn:hover {
-    background: var(--border);
+    background: #f1f5f9;
+}
+
+[data-theme="dark"] .nav-btn:hover {
+    background: #32353c;
 }
 
 .nav-btn.active {
@@ -588,8 +980,8 @@ body.legacy-sidebar-transitioning .legacy-collapsed-rail>* {
 }
 
 .saved-badge {
-    background: var(--accent);
-    color: var(--main-bg);
+    background: #f43f5e;
+    color: #ffffff;
     border-radius: 99px;
     padding: 0.05rem 0.35rem;
     font-size: 0.75rem;
@@ -607,6 +999,11 @@ body.legacy-sidebar-transitioning .legacy-collapsed-rail>* {
     transition: background 0.2s, color 0.2s;
 }
 
+[data-theme="dark"] .saved-badge {
+    background: #f43f5e;
+    color: #ffffff;
+}
+
 .nav-btn.active .saved-badge {
     background: white;
     color: #f43f5e;
@@ -614,11 +1011,17 @@ body.legacy-sidebar-transitioning .legacy-collapsed-rail>* {
 
 .view-toggle {
     display: flex;
-    background: var(--card-bg);
+    background: #ffffff;
     border-radius: 6px;
     padding: 2px;
     border: 1px solid var(--border);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .view-toggle {
+    background: #25272c;
+    border-color: var(--border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .view-toggle-btn {
@@ -635,10 +1038,26 @@ body.legacy-sidebar-transitioning .legacy-collapsed-rail>* {
     transition: all 0.2s;
 }
 
+.view-toggle-btn:hover:not(.active) {
+    color: var(--text);
+    background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .view-toggle-btn:hover:not(.active) {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.06);
+}
+
 .view-toggle-btn.active {
-    background: var(--sidebar-bg);
+    background: #e2e8f0;
     color: var(--text);
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .view-toggle-btn.active {
+    background: #3a3d45;
+    color: var(--text);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 details.sidebar-group {
@@ -1157,6 +1576,8 @@ select {
     opacity: 0.6;
 }
 
+
+
 .ac-loading-indicator {
     display: none;
     position: absolute;
@@ -1207,15 +1628,19 @@ select {
     position: sticky;
     top: 0;
     margin: 0 -10px 0.25rem -10px;
-    padding: 1rem 10px;
+    padding: 0.65rem 10px;
     background: var(--sidebar-bg);
     border-bottom: 1px solid var(--border);
     display: flex;
+    align-items: center;
     gap: 10px;
     z-index: 10;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     box-sizing: border-box;
-    height: 68px;
+    /* 62px compact-proportioned header height across all modes (matches
+       the results header). align-items:center + reduced vertical padding
+       keep the 36px buttons centered in the slimmer bar. */
+    height: 62px;
     flex-shrink: 0;
 }
 
@@ -1261,13 +1686,25 @@ select {
 
 .sidebar-sticky-header button.secondary-btn {
     flex: 1;
-    background-color: transparent;
+    background-color: #ffffff;
     color: var(--text);
     border: 1px solid var(--border);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .sidebar-sticky-header button.secondary-btn {
+    background-color: #25272c;
+    border-color: var(--border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .sidebar-sticky-header button.secondary-btn:hover {
-    background-color: var(--card-bg);
+    background-color: #f1f5f9;
+    border-color: var(--accent);
+}
+
+[data-theme="dark"] .sidebar-sticky-header button.secondary-btn:hover {
+    background-color: #32353c;
     border-color: var(--accent);
 }
 
@@ -1359,6 +1796,8 @@ main.results {
     display: flex;
     flex-direction: column;
     position: relative;
+    container-type: inline-size;
+    container-name: results-main;
 }
 
 #statusMessage {
@@ -1376,8 +1815,13 @@ main.results {
        anchor to it; only the positioning changed, padding/margins intact. */
     position: relative;
     margin: 0 -1.5rem 1.5rem -1.5rem;
-    padding: 1rem 1.5rem;
-    background: var(--main-bg);
+    /* No vertical padding: with a fixed 62px height + align-items:center the
+       content is perfectly centered like Compact Mode's header. The old
+       1rem top padding painted a fat band of header background above the
+       content which — under the dark top nav bar in non-compact mode —
+       read as a phantom "top margin" on the content header. */
+    padding: 0 1.5rem;
+    background: var(--results-header-bg, var(--main-bg));
     border-bottom: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
@@ -1386,7 +1830,9 @@ main.results {
     gap: 1rem;
     z-index: 10;
     transition: background-color 0.3s;
-    height: 68px;
+    /* 62px compact-proportioned header — the slimmer size users liked from
+       Compact Mode, now the baseline for ALL modes. */
+    height: 62px;
     box-sizing: border-box;
     flex-shrink: 0;
 }
@@ -1395,6 +1841,8 @@ main.results {
     display: flex;
     align-items: center;
     gap: 1rem;
+    height: 100%;
+    min-height: 36px;
 }
 
 .results-header-right {
@@ -1407,7 +1855,24 @@ main.results {
     display: none;
     align-items: center;
     align-self: center;
-    gap: 0.8rem;
+    gap: 0.6rem;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+}
+
+#totalCount {
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    line-height: 1;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+    padding: 0;
+    margin: 0;
+    user-select: none;
+    transform: translateY(1px);
 }
 
 #discoverDashboardToggles button {
@@ -1419,18 +1884,24 @@ main.results {
     transform: none !important;
 }
 
+#discoverDashboardToggles .nav-btn.active,
+[data-theme="dark"] #discoverDashboardToggles .nav-btn.active {
+    background: #ef4444 !important;
+    border-color: #ef4444 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+#discoverDashboardToggles .nav-btn.active svg,
+[data-theme="dark"] #discoverDashboardToggles .nav-btn.active svg {
+    stroke: #ffffff !important;
+}
+
 /* The dashboard tabs belong exclusively to the Home/Discover screen. This
    guards against stale controls when another navigation path hides the
    dashboard without rebuilding the results header. */
 main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardToggles {
     display: none !important;
-}
-
-#totalCount {
-    font-size: 0.95rem;
-    color: var(--text);
-    font-weight: 700;
-    padding-bottom: 1px;
 }
 
 #fetchStatus {
@@ -1440,9 +1911,16 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     opacity: 0.9;
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    height: 36px;
+    line-height: 1;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
     transition: opacity 1s ease;
-    vertical-align: middle;
+}
+
+#fetchStatus span {
+    display: inline-block;
     line-height: 1;
 }
 
@@ -1529,6 +2007,15 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     margin-right: 10px;
 }
 
+/* Filter content tooltips: open downwards-left to avoid sticky filter header clipping */
+.filter-content .tooltip-content.tooltip-left {
+    top: calc(100% + 6px);
+    right: 0;
+    left: auto;
+    transform: none;
+    margin: 0;
+}
+
 /* Query speed tooltip: opens below-left to avoid header clipping */
 #querySpeedTooltip {
     top: calc(100% + 8px);
@@ -1546,13 +2033,23 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     align-items: center;
     vertical-align: middle;
     line-height: 1;
+    height: 36px;
+}
+
+.tooltip-content:empty,
+#querySpeedTooltip:empty {
+    display: none !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
 }
 
 [data-theme="dark"] .tooltip-content i {
     color: #e2e8f0;
 }
 
-.tooltip-wrapper:hover .tooltip-content {
+.tooltip-wrapper:hover .tooltip-content:not(:empty) {
     display: block;
 }
 
@@ -1641,10 +2138,8 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
     position: relative;
-    animation: cardFadeIn 0.35s ease both;
-    animation-delay: calc(min(var(--card-index, 0), 12) * 0.006s);
-    content-visibility: auto;
-    contain-intrinsic-size: auto 240px;
+    animation: cardFadeIn 0.25s ease both;
+    animation-delay: calc(min(var(--card-index, 0), 8) * 0.005s);
 }
 
 @keyframes cardFadeIn {
@@ -1663,9 +2158,17 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     animation: none !important;
 }
 
-.book-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+@media (hover: hover) {
+    .book-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(37, 99, 235, 0.45);
+        box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.12), 0 0 12px rgba(37, 99, 235, 0.12);
+    }
+
+    [data-theme="dark"] .book-card:hover {
+        border-color: rgba(56, 189, 248, 0.55);
+        box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.45), 0 0 16px rgba(56, 189, 248, 0.2);
+    }
 }
 
 .card-main {
@@ -1682,7 +2185,6 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    perspective: 800px;
     overflow: hidden;
     border-radius: 4px;
 }
@@ -1693,25 +2195,38 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     object-fit: cover;
     border-radius: 4px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-    transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.35s ease;
-    backface-visibility: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
     position: relative;
 }
 
-/* 3D cover hover — grid view only */
+/* 2D cover hover — grid view only */
 .book-grid:not(.list-view) .book-card:hover .book-cover {
-    transform: scale(1.06) rotateY(-8deg) rotateX(3deg);
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 0 20px rgba(56, 189, 248, 0.15);
+    transform: scale(1.04);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.22);
 }
 
 [data-theme="dark"] .book-grid:not(.list-view) .book-card:hover .book-cover {
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.4), 0 0 24px rgba(56, 189, 248, 0.25);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4), 0 0 16px rgba(56, 189, 248, 0.2);
 }
 
 /* List view covers — keep flat */
 .book-grid.list-view .book-card:hover .book-cover {
     transform: none;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+body.is-scrolling .book-card,
+main.results.is-scrolling .book-card {
+    pointer-events: none !important;
+    transform: none !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+    border-color: var(--border) !important;
+}
+
+body.is-scrolling .book-card .book-cover,
+main.results.is-scrolling .book-card .book-cover {
+    transform: none !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
 }
 
 .no-cover {
@@ -1747,7 +2262,7 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     -webkit-box-orient: vertical;
     overflow: hidden;
     min-height: 2.64rem;
-    padding-right: 2.5rem;
+    padding-right: 42px;
 }
 
 .book-card.is-translating {
@@ -1763,7 +2278,7 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    padding-right: 2.5rem;
+    padding-right: 42px;
 }
 
 .book-author span {
@@ -1827,13 +2342,31 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
 
 .tags-list {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    align-content: flex-start;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
     overflow: hidden;
-    max-height: 54px;
+    max-height: 52px;
     margin-top: auto;
     padding-top: 4px;
+}
+
+.tags-list.grid-tags {
+    transition: opacity 0.15s ease;
+}
+
+body.sidebar-tag-transitioning .tags-list.grid-tags {
+    opacity: 0 !important;
+    pointer-events: none;
+    transition: opacity 0.05s ease;
+}
+
+.tags-list .tag-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+    align-items: center;
+    overflow: hidden;
 }
 
 .tags-list.list-tags {
@@ -1923,13 +2456,26 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
 }
 
 #detailsSubjects {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
     max-height: none !important;
+    gap: 0.4rem !important;
+    align-items: center !important;
+}
+
+#detailsSubjects .tag {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    max-width: 100% !important;
 }
 
 .tag-overflow {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    align-self: flex-start;
+    max-width: max-content;
     box-sizing: border-box;
     font-size: 0.7rem;
     line-height: 1;
@@ -2022,9 +2568,17 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     contain-intrinsic-size: auto 75px;
 }
 
-.book-grid.list-view .book-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+@media (hover: hover) {
+    .book-grid.list-view .book-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(37, 99, 235, 0.45);
+        box-shadow: 0 6px 14px -2px rgba(0, 0, 0, 0.1), 0 0 10px rgba(37, 99, 235, 0.1);
+    }
+
+    [data-theme="dark"] .book-grid.list-view .book-card:hover {
+        border-color: rgba(56, 189, 248, 0.55);
+        box-shadow: 0 6px 14px -2px rgba(0, 0, 0, 0.35), 0 0 12px rgba(56, 189, 248, 0.15);
+    }
 }
 
 .book-grid.list-view .card-main {
@@ -2083,7 +2637,8 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     margin: 0;
     white-space: normal;
     -webkit-line-clamp: 2;
-    padding: 0;
+    padding: 0 0 0 0.65rem;
+    box-sizing: border-box;
     min-height: auto;
 }
 
@@ -2298,7 +2853,7 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
 .book-grid.list-view .skeleton-card .skeleton-title {
     grid-column: 1;
     width: 80%;
-    margin: 0;
+    margin: 0 0 0 0.65rem;
 }
 
 .book-grid.list-view .skeleton-card .skeleton-author {
@@ -2386,11 +2941,14 @@ button#loadMoreBtn:disabled {
 
 /* Global Header Search Bar */
 .header-search-container {
+    grid-column: 2;
+    justify-self: center;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex: 1;
-    max-width: 460px;
+    width: 100%;
+    max-width: 580px;
+    min-width: 0;
     margin: 0 1.5rem;
 }
 
@@ -2479,11 +3037,21 @@ button#loadMoreBtn:disabled {
     font-size: 0.9rem;
     font-weight: 700;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, opacity 0.2s, color 0.2s, border-color 0.2s;
 }
 
-.search-btn:hover {
+.search-btn:hover:not(:disabled) {
     background: #0284c7;
+}
+
+.search-btn:disabled {
+    background: var(--input-bg, rgba(255, 255, 255, 0.08)) !important;
+    color: var(--text-muted, #94a3b8) !important;
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12)) !important;
+    box-shadow: none !important;
+    pointer-events: none;
 }
 
 /* Discover/Explore Dashboard */
@@ -2506,9 +3074,53 @@ button#loadMoreBtn:disabled {
 
 .genre-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1.75rem 1.5rem;
-    margin-bottom: 1rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.75rem 1.65rem;
+    max-width: 1400px;
+    margin: 0 auto 1.5rem auto;
+    justify-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.85) 0%, rgba(241, 245, 249, 0.65) 100%);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 2.25rem 2rem 2rem 2rem;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    box-sizing: border-box;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+[data-theme="dark"] .genre-grid {
+    background: linear-gradient(180deg, rgba(24, 32, 47, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 1399px) and (min-width: 950px) {
+    .genre-grid {
+        grid-template-columns: repeat(3, 1fr);
+        max-width: 1050px;
+        gap: 1.75rem 1.5rem;
+        padding: 2rem 1.75rem 1.75rem 1.75rem;
+    }
+}
+
+@media (max-width: 949px) and (min-width: 600px) {
+    .genre-grid {
+        grid-template-columns: repeat(2, 1fr);
+        max-width: 700px;
+        gap: 1.5rem 1.25rem;
+        padding: 1.5rem 1.25rem 1.25rem 1.25rem;
+    }
+}
+
+@media (max-width: 599px) {
+    .genre-grid {
+        grid-template-columns: 1fr;
+        max-width: 350px;
+        gap: 1.25rem 1rem;
+        padding: 1rem 0.75rem 1.85rem 0.75rem;
+        border-radius: 14px;
+    }
 }
 
 .genre-shelf-container {
@@ -2516,6 +3128,9 @@ button#loadMoreBtn:disabled {
     flex-direction: column;
     align-items: center;
     cursor: pointer;
+    max-width: 290px;
+    width: 100%;
+    margin: 0 auto;
 }
 
 .shelf-covers {
@@ -2537,6 +3152,15 @@ button#loadMoreBtn:disabled {
     margin: 0 -17px;
     transition: all 0.25s ease;
     border-left: 3px solid rgba(255, 255, 255, 0.2);
+}
+
+.shelf-covers .no-cover {
+    height: 119px;
+    width: 77px;
+    margin: 0 -17px;
+    border-radius: 3px 5px 5px 3px;
+    font-size: 0.7rem;
+    box-shadow: -3px 3px 8px rgba(0, 0, 0, 0.4);
 }
 
 .shelf-book-cover:nth-child(1) {
@@ -2582,11 +3206,12 @@ button#loadMoreBtn:disabled {
 
 .shelf-base {
     width: 100%;
+    max-width: 290px;
     height: 17px;
     background: linear-gradient(to bottom, #a0744b, #704b2a);
     border-radius: 4px;
     box-shadow: 0 6px 11px rgba(0, 0, 0, 0.3), inset 0 3px 3px rgba(255, 255, 255, 0.1);
-    margin-bottom: 1rem;
+    margin: 0 auto 0.75rem auto;
     position: relative;
     z-index: 3;
 }
@@ -2615,9 +3240,28 @@ button#loadMoreBtn:disabled {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
     padding: 1.5rem;
     width: 330px;
+    box-sizing: border-box;
+    max-height: min(580px, calc(100vh - 100px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
     z-index: 220 !important;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+}
+
+.settings-dropdown::-webkit-scrollbar {
+    width: 6px;
+}
+
+.settings-dropdown::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 3px;
+}
+
+.settings-dropdown::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 .settings-dropdown-header {
@@ -2626,7 +3270,7 @@ button#loadMoreBtn:disabled {
     align-items: center;
     border-bottom: 1px solid var(--border);
     padding-bottom: 0.85rem;
-    margin-bottom: 1.2rem;
+    margin-bottom: 0.65rem;
 }
 
 .settings-title {
@@ -2710,6 +3354,10 @@ button#loadMoreBtn:disabled {
 @media (max-width: 768px) {
     .header-search-container {
         display: none;
+    }
+
+    .compact-header-row {
+        display: none !important;
     }
 }
 
@@ -2867,6 +3515,59 @@ button#loadMoreBtn:disabled {
     white-space: pre-line;
 }
 
+.details-description p.synopsis-paragraph {
+    margin: 0 0 0.85rem 0;
+    line-height: 1.65;
+    white-space: normal;
+}
+
+.details-description p.synopsis-paragraph:last-of-type {
+    margin-bottom: 0.25rem;
+}
+
+.synopsis-source-badge {
+    margin-top: 0.85rem;
+    padding: 0.35rem 0.65rem;
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: var(--text);
+    opacity: 0.85;
+    display: inline-block;
+    line-height: 1.3;
+    white-space: normal;
+}
+
+[data-theme="dark"] .synopsis-source-badge {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.synopsis-source-badge a,
+.synopsis-link {
+    color: var(--btn-bg);
+    text-decoration: underline;
+    font-weight: 500;
+    transition: color 0.15s ease;
+}
+
+.synopsis-source-badge a:hover,
+.synopsis-link:hover {
+    color: var(--btn-hover);
+}
+
+[data-theme="dark"] .synopsis-source-badge a,
+[data-theme="dark"] .synopsis-link {
+    color: var(--accent);
+}
+
+.synopsis-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0.85rem 0;
+    opacity: 0.5;
+}
+
 .details-drawer-footer {
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--border);
@@ -2937,6 +3638,104 @@ button#loadMoreBtn:disabled {
     align-items: center;
 }
 
+.settings-action-btn {
+    height: 26px;
+    width: 68px;
+    border-radius: 26px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background-color: #ffffff;
+    color: #1e293b;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    padding: 0;
+    line-height: 1;
+}
+
+.settings-action-btn:hover {
+    background-color: var(--sidebar-bg);
+    border-color: var(--btn-bg);
+    color: var(--btn-bg);
+}
+
+.settings-action-btn:active {
+    transform: scale(0.96);
+}
+
+[data-theme="dark"] .settings-action-btn {
+    background-color: #2a2c32;
+    color: #e2e8f0;
+    border: 1px solid #4b5563;
+}
+
+[data-theme="dark"] .settings-action-btn:hover {
+    background-color: #373a40;
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.settings-reset-btn {
+    width: 100%;
+    height: 36px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background-color: #ffffff;
+    color: var(--text);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+    box-sizing: border-box;
+    padding: 0 1rem;
+    line-height: 1;
+}
+
+.settings-reset-btn:hover {
+    background-color: var(--sidebar-bg);
+    border-color: var(--btn-bg);
+    color: var(--btn-bg);
+}
+
+.settings-reset-btn:active {
+    transform: scale(0.98);
+}
+
+[data-theme="dark"] .settings-reset-btn {
+    background-color: #25272c;
+    color: var(--text);
+    border: 1px solid #3d414a;
+}
+
+[data-theme="dark"] .settings-reset-btn:hover {
+    background-color: #32353c;
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Sidebar Position control (Preferences → General): identical mechanics to
+   the sun/moon theme switcher — the hidden checkbox + .slider track, with
+   the .slider:before knob sliding over one of the letters. The letters are
+   just L/R instead of icons; unchecked = Left (knob covers R, L shows),
+   checked = Right (knob slides over L, R shows). Same 50px pill as the
+   other switches. */
+.slider .sidebar-side-letter {
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
 /* Mobile Legacy Layout toggle only makes sense on mobile viewports — hidden
    on desktop by default, revealed again inside the ≤768px media query
    further down this file (mirrors how .legacy-layout-row does the reverse). */
@@ -2968,49 +3767,59 @@ button#loadMoreBtn:disabled {
     margin-bottom: 0.4rem;
 }
 
-.settings-advanced[open]>summary {
-    margin-bottom: 0.7rem;
+/* Settings Segmented Tab Switcher */
+.settings-tabs {
+    display: flex;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 4px;
+    margin-bottom: 1.15rem;
+    box-sizing: border-box;
 }
 
-.settings-advanced>summary:hover {
-    opacity: 0.85;
+.settings-tab {
+    flex: 1;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: center;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text);
+    opacity: 0.7;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
 }
 
-.settings-advanced>summary::-webkit-details-marker {
-    display: none;
+.settings-tab:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.05);
 }
 
-.settings-advanced>summary::after {
-    content: '';
-    display: block;
-    width: 12px;
-    height: 12px;
-    flex-shrink: 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.settings-tab.active {
+    opacity: 1;
+    background: var(--card-bg);
+    border-color: var(--border);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    font-weight: 700;
 }
 
-.settings-advanced[open]>summary::after {
-    transform: rotate(180deg);
+[data-theme="dark"] .settings-tab.active {
+    background: #373a40;
+    border-color: #4b4e57;
+    color: #ffffff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
 }
 
-[data-theme="dark"] .settings-advanced>summary::after {
-    filter: invert(1);
-}
-
-.settings-advanced-content {
+.settings-tab-pane {
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
-    padding-top: 0.85rem;
-}
-
-.settings-advanced-content .settings-category:first-child {
-    padding-top: 0;
-    border-top: none;
+    gap: 1.15rem;
 }
 
 /* Mobile-sidebar branding footer — hidden everywhere by default (i.e. on
@@ -3177,24 +3986,26 @@ input:checked+.slider.url-slider .icon.list-icon {
         justify-content: center !important;
         flex-shrink: 0 !important;
         padding: 0 !important;
+        margin: 0 !important;
+        gap: 0 !important;
         flex-direction: row !important;
     }
 
-    /* Hide brand text, keep only 📚 emoji */
-    .brand h1 {
-        font-size: 0 !important;
-        letter-spacing: 0 !important;
-        gap: 0 !important;
-        margin: 0 !important;
-    }
-
-    .brand h1 .logo-icon {
-        font-size: 1.4rem !important;
-        line-height: 1 !important;
-    }
-
+    /* Hide brand text container on mobile so only the centered logo icon remains */
+    .brand-text,
     .brand-subtitle {
         display: none !important;
+    }
+
+    .brand .logo-icon {
+        font-size: 1.65rem !important;
+        line-height: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        filter: none !important;
     }
 
     /* Hide header controls (settings + theme) on mobile */
@@ -3207,13 +4018,14 @@ input:checked+.slider.url-slider .icon.list-icon {
         flex: 1 1 0% !important;
         display: flex !important;
         align-items: center !important;
-        padding: 0 0.65rem 0 0.35rem !important;
+        padding: 0 0.85rem !important;
         gap: 0.4rem !important;
         height: 100% !important;
         box-sizing: border-box !important;
         order: unset !important;
         flex-basis: auto !important;
-        width: auto !important;
+        width: 100% !important;
+        max-width: none !important;
         margin: 0 !important;
     }
 
@@ -3270,7 +4082,7 @@ input:checked+.slider.url-slider .icon.list-icon {
     .sidebar-collapsed aside.filters {
         width: 42px !important;
         min-width: 42px !important;
-        /* No max-width here on purpose: `width` alone already pins this to
+        /* No max-width here on purpose: `width` alone alone already pins this to
            exactly 42px, and unlike max-width it IS one of the transitioned
            properties. A max-width:42px here previously snapped instantly
            (not being part of `transition: width ...`) the moment collapse
@@ -3535,12 +4347,10 @@ input:checked+.slider.url-slider .icon.list-icon {
 
     /* Keep results-header on fixed 52px height grid to preserve bottom border separator */
     .results-header {
-        margin-bottom: 0.5rem !important;
+        margin: 0 -0.85rem 0.5rem -0.85rem !important;
+        padding: 0 0.85rem !important;
         height: 52px !important;
         min-height: 52px !important;
-        padding: 0 !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
@@ -3608,12 +4418,19 @@ input:checked+.slider.url-slider .icon.list-icon {
 
     /* ── 9. Discover dashboard grid alignment ───────────────── */
     .discover-dashboard,
-    .discover-dashboard #featuredClassicsGrid,
-    .discover-dashboard .genre-grid {
+    .discover-dashboard #featuredClassicsGrid {
         width: 100% !important;
         box-sizing: border-box !important;
         padding: 0 !important;
         margin: 0 !important;
+    }
+
+    .discover-dashboard .genre-grid {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 1.5rem 1rem 2.25rem 1rem !important;
+        margin: 0 auto 1.5rem auto !important;
+        border-radius: 16px !important;
     }
 
     .book-grid {
@@ -3626,10 +4443,14 @@ input:checked+.slider.url-slider .icon.list-icon {
     .book-grid:not(.list-view) .book-title {
         min-height: unset !important;
         -webkit-line-clamp: 2 !important;
+        padding-right: 48px !important;
+        /* 1.5x the 32px heart button width */
     }
 
     .book-grid:not(.list-view) .book-author {
         margin-bottom: 0.35rem !important;
+        padding-right: 48px !important;
+        /* 1.5x the 32px heart button width */
     }
 
     .book-grid:not(.list-view) .tags-list.grid-tags {
@@ -3812,6 +4633,9 @@ input:checked+.slider.url-slider .icon.list-icon {
         box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.3) !important;
         box-sizing: border-box !important;
         overflow-y: auto !important;
+        overscroll-behavior: contain !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 1rem 1.25rem max(2.5rem, calc(env(safe-area-inset-bottom) + 2rem)) 1.25rem !important;
     }
 
     .settings-dropdown-header::before {
@@ -3860,39 +4684,47 @@ input:checked+.slider.url-slider .icon.list-icon {
        anything else would be. */
     .app-container:not(.sidebar-collapsed) .mobile-sidebar-branding {
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         align-items: center;
-        text-align: center;
-        gap: 0.2rem;
+        justify-content: center;
+        gap: 0.6rem;
         margin-top: auto;
         padding: 1.25rem 1rem 1rem 1rem;
         flex-shrink: 0;
-        /* 0.55 washed the title/subtitle out to a grey that flattered neither
-           theme; the text already inherits var(--text) for per-theme contrast,
-           so a higher opacity just lets that contrast through. */
         opacity: 0.9;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .mobile-sidebar-branding .logo-icon {
+        font-size: 1.65rem;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+    }
+
+    .mobile-sidebar-branding-text {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        justify-content: center;
+        text-align: left;
     }
 
     .mobile-sidebar-branding-title {
-        font-size: 1.18rem;
+        font-size: 1.05rem;
         font-weight: 800;
         color: var(--text);
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-    }
-
-    .mobile-sidebar-branding-title .logo-icon {
-        font-size: 1.4rem;
+        line-height: 1.15;
     }
 
     .mobile-sidebar-branding-subtitle {
-        font-size: 0.75rem;
-        line-height: 1.35;
+        font-size: 0.68rem;
+        line-height: 1.15;
         color: var(--text);
+        opacity: 0.7;
         margin: 0;
-        /* No width cap — the banner spans the same width as the Filter/Sort
-           controls above it (see the mobile-legacy margin rule below). */
     }
 
     /* In Mobile Legacy Layout the branding footer is a direct child of the
@@ -4097,7 +4929,7 @@ input:checked+.slider.url-slider .icon.list-icon {
 
     /* Header search row alignment (Mobile Alternative mode): align left/right edges with main content padding */
     body.mobile-legacy-layout .header-search-container {
-        padding-left: 1.35rem !important;
+        padding-left: calc(0.85rem + 3px) !important;
         padding-right: 0.85rem !important;
     }
 
@@ -4138,23 +4970,23 @@ input:checked+.slider.url-slider .icon.list-icon {
         display: none !important;
     }
 
-    /* No reserved rail width — collapsed sidebar leaves nothing behind. A
-       touch of extra left padding (vs. the base mobile 0.85rem) gives the
-       swipe hint's peek — which pokes ~17px into the viewport while
-       collapsed — a bit of breathing room from card content. 1.35rem
-       clears the ear's full body (15px + 2px accent border) with a couple
-       of px to spare, since 1.1rem left it visually touching. */
+    /* No reserved rail width — collapsed sidebar leaves nothing behind. Ear tab
+       rests almost fully hidden with only its 3px blue edge exposed, so main content
+       expands with only 3px offset, leaving symmetric margins on both sides. */
     body.mobile-legacy-layout main.results {
         margin-left: 0 !important;
         width: 100% !important;
-        padding-left: 1.35rem !important;
-        /* Drags can start anywhere on screen, including over the main
-           content. Same treatment as the aside: the browser keeps native
-           vertical scrolling but never claims horizontal moves, and the
-           Android overscroll stretch is suppressed so the content behind
-           the dimming backdrop doesn't distort mid-drag. */
+        padding-left: calc(0.85rem + 3px) !important;
+        padding-right: 0.85rem !important;
         touch-action: pan-y !important;
         overscroll-behavior-y: contain !important;
+    }
+
+    body.mobile-legacy-layout .results-header {
+        margin-left: calc(-0.85rem - 3px) !important;
+        margin-right: -0.85rem !important;
+        padding-left: calc(0.85rem + 3px) !important;
+        padding-right: 0.85rem !important;
     }
 
     /* The settings gear docks into the top header row (next to Home),
@@ -4220,21 +5052,19 @@ input:checked+.slider.url-slider .icon.list-icon {
         position: absolute;
         top: 50%;
         left: 0;
-        /* A compact, opaque tab that reads as a grabbable "ear" — it's both
-           the discoverability hint and the grab handle for the drag gesture
-           (script.js drags the whole sidebar 1:1 with the finger from
-           anywhere on screen). */
-        width: 15px;
+        /* A compact tab that rests almost completely hidden, only showing the
+           ear's blue right edge at rest (-14px offset). */
+        width: 16px;
         height: 46px;
-        transform: translateY(-50%) translateX(0);
+        transform: translateY(-50%) translateX(-14px);
         background: var(--card-bg);
         color: var(--accent);
         border: 1px solid var(--border);
         border-left: none;
-        border-right: 2px solid var(--accent);
+        border-right: 3px solid var(--accent);
         border-radius: 0 10px 10px 0;
-        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.22);
-        opacity: 0.9 !important;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.18);
+        opacity: 0.95 !important;
         z-index: 160;
         cursor: grab;
         transition: opacity 0.2s ease, transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
@@ -4254,12 +5084,12 @@ input:checked+.slider.url-slider .icon.list-icon {
         cursor: grabbing;
     }
 
-    /* Collapsed: gentle periodic nudge to catch the eye. Suppressed by the
-       Reduce Animations setting (body.reduce-animations), same as every
-       other decorative animation in the app. */
+    /* Collapsed: gentle 3-repetition nudge to suggest the swipe gesture on initial load,
+       then stops cleanly at rest until page is refreshed. */
     body.mobile-legacy-layout .sidebar-collapsed #mobileSidebarSwipeHint {
-        animation: swipeHintNudge 2.6s ease-in-out infinite;
-        animation-delay: 1s;
+        animation: swipeHintNudge 2.6s ease-in-out 3;
+        animation-delay: 1.2s;
+        animation-fill-mode: forwards;
     }
 
     body.reduce-animations #mobileSidebarSwipeHint {
@@ -4283,15 +5113,15 @@ input:checked+.slider.url-slider .icon.list-icon {
         0%,
         35%,
         100% {
-            transform: translateY(-50%) translateX(0);
+            transform: translateY(-50%) translateX(-14px);
         }
 
         15% {
-            transform: translateY(-50%) translateX(6px);
+            transform: translateY(-50%) translateX(0);
         }
 
         25% {
-            transform: translateY(-50%) translateX(0);
+            transform: translateY(-50%) translateX(-14px);
         }
     }
 
@@ -4548,6 +5378,7 @@ input:checked+.slider.url-slider .icon.list-icon {
         display: inline-flex !important;
         align-items: center !important;
         line-height: 1 !important;
+        transform: translateY(1px) !important;
     }
 
     #fetchStatus {
@@ -4632,11 +5463,32 @@ input:checked+.slider.url-slider .icon.list-icon {
         flex-shrink: 0 !important;
     }
 
-    /* 9. Rail Popover Scrollability */
+    /* 9. Rail Popover Perfect Screen Fitting on Mobile */
     .rail-popover {
-        max-height: calc(100dvh - var(--mobile-header-height, 48px) - 24px) !important;
+        position: fixed !important;
+        left: 50px !important;
+        right: auto !important;
+        top: max(56px, calc(var(--mobile-header-height, 48px) + 8px)) !important;
+        bottom: auto !important;
+        height: auto !important;
+        width: min(330px, calc(100vw - 58px)) !important;
+        max-width: calc(100vw - 58px) !important;
+        max-height: calc(100dvh - max(56px, calc(var(--mobile-header-height, 48px) + 8px)) - max(16px, env(safe-area-inset-bottom, 16px))) !important;
         overflow-y: auto !important;
         overflow-x: hidden !important;
+        box-sizing: border-box !important;
+        transform: translateY(-4px) !important;
+        transition: opacity 0.18s ease, transform 0.18s ease !important;
+    }
+
+    body.sidebar-right .rail-popover {
+        left: auto !important;
+        right: 50px !important;
+        margin-left: 0 !important;
+    }
+
+    .rail-popover.open {
+        transform: translateY(0) !important;
     }
 }
 
@@ -4645,6 +5497,45 @@ input:checked+.slider.url-slider .icon.list-icon {
 
     main.results {
         padding: 0 0.65rem 0.85rem 0.65rem;
+    }
+
+    .results-header {
+        margin: 0 -0.65rem 0.5rem -0.65rem !important;
+        padding: 0 0.65rem !important;
+    }
+
+    body.mobile-legacy-layout main.results {
+        padding-left: calc(0.65rem + 3px) !important;
+        padding-right: 0.65rem !important;
+    }
+
+    body.sidebar-right.mobile-legacy-layout main.results {
+        padding-left: 0.65rem !important;
+        padding-right: calc(0.65rem + 3px) !important;
+    }
+
+    body.mobile-legacy-layout .header-search-container {
+        padding-left: calc(0.65rem + 3px) !important;
+        padding-right: 0.65rem !important;
+    }
+
+    body.sidebar-right.mobile-legacy-layout .header-search-container {
+        padding-left: 0.65rem !important;
+        padding-right: calc(0.65rem + 3px) !important;
+    }
+
+    body.mobile-legacy-layout .results-header {
+        margin-left: calc(-0.65rem - 3px) !important;
+        margin-right: -0.65rem !important;
+        padding-left: calc(0.65rem + 3px) !important;
+        padding-right: 0.65rem !important;
+    }
+
+    body.sidebar-right.mobile-legacy-layout .results-header {
+        margin-left: -0.65rem !important;
+        margin-right: calc(-0.65rem - 3px) !important;
+        padding-left: 0.65rem !important;
+        padding-right: calc(0.65rem + 3px) !important;
     }
 
     .book-grid {
@@ -4664,17 +5555,72 @@ input:checked+.slider.url-slider .icon.list-icon {
     }
 
     .genre-grid {
-        grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)) !important;
-        gap: 0.75rem !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 1rem 0.65rem !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 auto 1rem auto !important;
+        padding: 1.25rem 0.85rem 2.25rem 0.85rem !important;
+        box-sizing: border-box !important;
+    }
+
+    .genre-shelf-container {
+        max-width: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .shelf-covers {
-        height: 115px !important;
+        height: 110px !important;
+        width: 100% !important;
+        max-width: 155px !important;
     }
 
     .shelf-book-cover {
-        height: 90px !important;
-        width: 58px !important;
+        height: 86px !important;
+        width: 54px !important;
+        margin: 0 -13px !important;
+    }
+
+    .shelf-book-cover:nth-child(1) {
+        height: 76px !important;
+        width: 48px !important;
+        transform: rotate(-12deg) translateX(12px) translateY(4px) !important;
+    }
+
+    .shelf-book-cover:nth-child(2) {
+        height: 86px !important;
+        width: 54px !important;
+        transform: rotate(-6deg) translateX(6px) translateY(2px) !important;
+    }
+
+    .shelf-book-cover:nth-child(3) {
+        height: 96px !important;
+        width: 60px !important;
+        transform: rotate(0deg) translateY(0) !important;
+    }
+
+    .shelf-book-cover:nth-child(4) {
+        height: 86px !important;
+        width: 54px !important;
+        transform: rotate(6deg) translateX(-6px) translateY(2px) !important;
+    }
+
+    .shelf-book-cover:nth-child(5) {
+        height: 76px !important;
+        width: 48px !important;
+        transform: rotate(12deg) translateX(-12px) translateY(4px) !important;
+    }
+
+    .shelf-base {
+        width: 100% !important;
+        max-width: 165px !important;
+        height: 13px !important;
+        margin: 0 auto 0.45rem auto !important;
+    }
+
+    .genre-name {
+        font-size: 0.85rem !important;
     }
 }
 
@@ -4922,4 +5868,841 @@ input:checked+.slider.url-slider .icon.list-icon {
     body.mobile-legacy-layout .selection-bulk-btn:hover {
         background: var(--sidebar-bg);
     }
+}
+
+/* ==========================================================================
+   SIDEBAR POSITION — RIGHT SIDE (body.sidebar-right)
+   ==========================================================================
+   Mirrors the sidebar to the right edge of the screen across all four
+   layouts (desktop, desktop legacy, mobile rail, mobile alternative). Every
+   rule here is additive on top of the base rules and keyed off
+   body.sidebar-right — nothing in the base rules changes. The class is set
+   early by script.js (and pre-paint by an inline snippet in index.html).
+   ========================================================================== */
+
+/* ── Shared: desktop (default + legacy) ─────────────────────────────── */
+body.sidebar-right .app-container {
+    flex-direction: row-reverse;
+}
+
+body.sidebar-right aside.filters {
+    border-right: none;
+    border-left: 1px solid var(--border);
+    box-shadow: inset 2px 0 5px rgba(0, 0, 0, 0.02);
+}
+
+body.sidebar-right .sidebar-collapsed aside.filters {
+    border-left-width: 0 !important;
+}
+
+/* Desktop Legacy collapsed rail (57px) — border moves to the left edge */
+body.sidebar-right.legacy-layout .sidebar-collapsed aside.filters {
+    border-right-width: 0 !important;
+    border-left-width: 1px !important;
+}
+
+/* Sidebar toggle chevrons point toward the sidebar — mirror them so they
+   point right when the sidebar sits on the right. */
+body.sidebar-right .sidebar-toggle-btn svg {
+    transform: scaleX(-1);
+}
+
+/* Rail popovers (desktop legacy): open out to the LEFT of a right rail */
+body.sidebar-right .rail-popover {
+    transform: translateX(6px);
+}
+
+body.sidebar-right .rail-popover.open {
+    transform: translateX(0);
+}
+
+/* ── Mobile (rail layout + mobile alternative) ──────────────────────── */
+@media (max-width: 768px) {
+
+    /* Default mobile rail: fixed rail + expanded drawer sit on the right.
+       The base mobile rules pin `border-right: 1px !important`, so the
+       border has to be explicitly moved to the left edge here. */
+    body.sidebar-right .sidebar-collapsed aside.filters {
+        left: auto !important;
+        right: 0 !important;
+        border-right: none !important;
+        border-left: 1px solid var(--border) !important;
+        box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    body.sidebar-right .sidebar-collapsed aside.filters>.sidebar-group {
+        left: auto !important;
+        right: 0 !important;
+    }
+
+    body.sidebar-right .app-container:not(.sidebar-collapsed) aside.filters {
+        left: auto !important;
+        right: 0 !important;
+        border-right: none !important;
+        border-left: 1px solid var(--border) !important;
+        box-shadow: -8px 0 32px rgba(0, 0, 0, 0.28) !important;
+    }
+
+    /* Reserve the rail's 42px on the right instead of the left (default
+       mobile rail only — mobile alternative has no rail). */
+    body.sidebar-right:not(.mobile-legacy-layout) main.results {
+        margin-left: 0 !important;
+        margin-right: 42px !important;
+    }
+
+    body.sidebar-right:not(.mobile-legacy-layout) header {
+        flex-direction: row-reverse !important;
+    }
+
+    /* Mobile Alternative: slide off/on to/from the right */
+    body.sidebar-right.mobile-legacy-layout .sidebar-collapsed aside.filters {
+        transform: translateX(100%) !important;
+        box-shadow: none !important;
+    }
+
+    body.sidebar-right.mobile-legacy-layout .app-container:not(.sidebar-collapsed) aside.filters {
+        box-shadow: -8px 0 32px rgba(0, 0, 0, 0.28) !important;
+    }
+
+    body.sidebar-right.mobile-legacy-layout .app-container aside.filters.dragging {
+        transform: var(--drag-transform, translateX(100%)) !important;
+    }
+
+    /* Main content: no reserved rail width; ear rests almost fully hidden with only
+       its 3px blue edge exposed on the right edge, so content pads symmetrically. */
+    body.sidebar-right.mobile-legacy-layout main.results {
+        margin-right: 0 !important;
+        padding-left: 0.85rem !important;
+        padding-right: calc(0.85rem + 3px) !important;
+    }
+
+    body.sidebar-right.mobile-legacy-layout .header-search-container {
+        padding-left: 0.85rem !important;
+        padding-right: calc(0.85rem + 3px) !important;
+    }
+
+    body.sidebar-right.mobile-legacy-layout .results-header {
+        margin-left: -0.85rem !important;
+        margin-right: calc(-0.85rem - 3px) !important;
+        padding-left: 0.85rem !important;
+        padding-right: calc(0.85rem + 3px) !important;
+    }
+
+    /* Ear tab: anchored to the right edge, border/radius/shadow mirrored, tucked at 14px */
+    body.sidebar-right.mobile-legacy-layout #mobileSidebarSwipeHint {
+        left: auto !important;
+        right: 0 !important;
+        border-right: none !important;
+        border-left: 3px solid var(--accent) !important;
+        border-radius: 10px 0 0 10px !important;
+        box-shadow: -2px 0 8px rgba(0, 0, 0, 0.18) !important;
+        transform: translateY(-50%) translateX(14px);
+    }
+
+    /* Ear arrow: base SVG points right. Right-side ear points LEFT at rest
+       (toward the off-canvas sidebar) and back right when open. */
+    body.sidebar-right.mobile-legacy-layout #mobileSidebarSwipeHint svg {
+        transform: rotate(180deg);
+    }
+
+    body.sidebar-right.mobile-legacy-layout .app-container:not(.sidebar-collapsed) #mobileSidebarSwipeHint svg {
+        transform: none;
+    }
+
+    /* Mid-drag: ear rides along on the sidebar's LEFT edge */
+    body.sidebar-right.mobile-legacy-layout .app-container aside.filters.dragging~#mobileSidebarSwipeHint {
+        transform: translateY(-50%) translateX(calc(-1 * var(--ear-open-offset, 0px))) !important;
+    }
+
+    /* Open: ear docks at the content boundary (the sidebar's left edge) */
+    body.sidebar-right.mobile-legacy-layout .app-container:not(.sidebar-collapsed) #mobileSidebarSwipeHint {
+        transform: translateY(-50%) translateX(calc(-1 * var(--ear-open-offset, 330px)));
+    }
+
+    /* Collapsed nudge: slides ear out to full width (0) for 3 cycles then stops at rest */
+    body.sidebar-right.mobile-legacy-layout .sidebar-collapsed #mobileSidebarSwipeHint {
+        animation: swipeHintNudgeRight 2.6s ease-in-out 3;
+        animation-delay: 1.2s;
+        animation-fill-mode: forwards;
+    }
+}
+
+@keyframes swipeHintNudgeRight {
+
+    0%,
+    35%,
+    100% {
+        transform: translateY(-50%) translateX(14px);
+    }
+
+    15% {
+        transform: translateY(-50%) translateX(0);
+    }
+
+    25% {
+        transform: translateY(-50%) translateX(14px);
+    }
+}
+
+/* ==========================================================================
+   Compact Desktop Mode (Desktop Preferences -> Appearance)
+   ========================================================================== */
+@media (min-width: 769px) {
+    body.compact-header header {
+        display: none !important;
+    }
+
+    /* Content header and sidebar header inherit the main header's gradient with 62px height */
+    body.compact-header .results-header,
+    body.compact-header .sidebar-sticky-header {
+        background: var(--header-bg) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12) !important;
+        height: 62px !important;
+        min-height: 62px !important;
+        box-sizing: border-box !important;
+        transition: none !important;
+    }
+
+    /* True 3-Column Absolute Middle Centering */
+    body.compact-header .results-header {
+        padding: 0 1.5rem !important;
+        margin: 0 -1.5rem 1.5rem -1.5rem !important;
+        display: grid !important;
+        grid-template-columns: minmax(max-content, 1fr) minmax(0, 580px) minmax(max-content, 1fr) !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+    }
+
+    body.compact-header .sidebar-sticky-header {
+        /* 10px horizontal matches the aside's own inset: keeps the toggle at
+           the SAME x-position in the rail and expanded states (fixes the
+           compact-mode squish where it jumped ~6px inward on open). */
+        padding: 0 10px !important;
+        display: flex !important;
+        align-items: center !important;
+        margin-bottom: 0 !important;
+    }
+
+    /* Legacy ON (switch ON): 10px content margin parity with sidebar */
+    body:not(.legacy-layout) main.results {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+
+    body:not(.legacy-layout) .results-header,
+    body.compact-header:not(.legacy-layout) .results-header {
+        margin: 0 -10px 1.5rem -10px !important;
+        padding: 0 10px !important;
+    }
+
+    body.compact-header:not(.legacy-layout) .sidebar-sticky-header {
+        padding: 0 10px !important;
+        margin-left: -10px !important;
+        margin-right: -10px !important;
+    }
+
+    body.compact-header.legacy-layout .sidebar-collapsed .sidebar-sticky-header {
+        height: 62px !important;
+        min-height: 62px !important;
+        padding: 0 10px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    body.compact-header .results-header-left {
+        grid-column: 1 !important;
+        justify-self: start !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        min-width: 0 !important;
+    }
+
+    body.compact-header .results-header .header-search-container {
+        grid-column: 2 !important;
+        justify-self: stretch !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+        /* Generous cap: the 1fr side columns absorb excess space on wide
+           monitors, and the grid compresses this column naturally when the
+           viewport shrinks (side columns shrink first, then this one). */
+        max-width: 580px !important;
+        min-width: 0 !important;
+        margin: 0 auto !important;
+    }
+
+    body.compact-header .results-header .header-search-bar {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+
+    body.compact-header .results-header .header-search-bar input {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    body.compact-header .results-header-right {
+        grid-column: 3 !important;
+        justify-self: end !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+    }
+
+    /* Controls & Buttons inside Compact Headers (Translucent Frosted Surface) */
+    body.compact-header .results-header .nav-btn,
+    body.compact-header .sidebar-sticky-header .nav-btn,
+    body.compact-header .sidebar-sticky-header button.secondary-btn,
+    body.compact-header .sidebar-sticky-header button.primary-btn,
+    body.compact-header .results-header #settingsBtn,
+    body.compact-header .results-header #homeBtn,
+    body.compact-header .results-header #sidebarToggleBtn,
+    body.compact-header .sidebar-sticky-header #sidebarToggleBtn {
+        height: 36px !important;
+        min-height: 36px !important;
+        box-sizing: border-box !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        color: #ffffff !important;
+        border-radius: 8px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+        transition: background-color 0.2s, border-color 0.2s, transform 0.15s !important;
+    }
+
+    /* Settings Button & Icon Buttons Exact 1:1 Aspect Ratio (No Smushing) */
+    body.compact-header .results-header #settingsBtn,
+    body.compact-header .results-header #homeBtn,
+    body.compact-header .results-header #sidebarToggleBtn,
+    body.compact-header .sidebar-sticky-header #sidebarToggleBtn,
+    body.compact-header .results-header-right #toggleAllBtn,
+    body.compact-header .sidebar-sticky-header #toggleAllBtn {
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+        height: 36px !important;
+        min-height: 36px !important;
+        max-height: 36px !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        flex: 0 0 36px !important;
+        aspect-ratio: 1 / 1 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    body.compact-header .results-header .nav-btn:hover,
+    body.compact-header .sidebar-sticky-header .nav-btn:hover,
+    body.compact-header .sidebar-sticky-header button.secondary-btn:hover,
+    body.compact-header .results-header #settingsBtn:hover,
+    body.compact-header .results-header #homeBtn:hover,
+    body.compact-header .results-header #sidebarToggleBtn:hover {
+        background: rgba(255, 255, 255, 0.24) !important;
+        border-color: rgba(255, 255, 255, 0.45) !important;
+        color: #ffffff !important;
+        transform: translateY(-1px);
+    }
+
+    /* SVG stroke inside header buttons */
+    body.compact-header .results-header #settingsBtn svg,
+    body.compact-header .results-header #homeBtn svg,
+    body.compact-header .results-header #sidebarToggleBtn svg,
+    body.compact-header .sidebar-sticky-header button svg,
+    body.compact-header .results-header .nav-btn svg {
+        stroke: #ffffff !important;
+        color: #ffffff !important;
+    }
+
+    /* Active Dashboard Toggles in Gradient Header - Red Background & White Text */
+    body.compact-header #discoverDashboardToggles .nav-btn.active,
+    [data-theme="dark"] body.compact-header #discoverDashboardToggles .nav-btn.active {
+        background: #ef4444 !important;
+        border-color: #ef4444 !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+
+    body.compact-header #discoverDashboardToggles .nav-btn.active svg,
+    [data-theme="dark"] body.compact-header #discoverDashboardToggles .nav-btn.active svg {
+        stroke: #ffffff !important;
+    }
+
+    /* Active Saved / Library Button (Preserve Crisp Outline Without White Blob) */
+    body.compact-header #viewSavedBtn.active {
+        background: #f43f5e !important;
+        border-color: #f43f5e !important;
+        color: #ffffff !important;
+    }
+
+    body.compact-header #viewSavedBtn.active svg {
+        stroke: #ffffff !important;
+        fill: none !important;
+    }
+
+    /* Search Bar Input inside Gradient Header */
+    body.compact-header .results-header .header-search-bar {
+        height: 36px !important;
+        box-sizing: border-box !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        border-radius: 6px !important;
+    }
+
+    body.compact-header .results-header .header-search-bar input {
+        color: #ffffff !important;
+    }
+
+    body.compact-header .results-header .header-search-bar input::placeholder {
+        color: #cbd5e1 !important;
+        opacity: 0.85;
+    }
+
+    body.compact-header .results-header .header-search-bar .search-icon {
+        color: #cbd5e1 !important;
+    }
+
+    body.compact-header .results-header .header-search-bar .search-clear-btn {
+        color: #cbd5e1 !important;
+    }
+
+    body.compact-header .results-header #globalSearchBtn {
+        height: 36px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Text elements inside Gradient Header */
+    body.compact-header #fetchStatus {
+        color: #93c5fd !important;
+        font-weight: 600 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        height: 36px !important;
+        line-height: 1 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    body.compact-header #totalCount {
+        color: #f8fafc !important;
+        font-weight: 700 !important;
+        font-size: 0.88rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        height: 36px !important;
+        line-height: 1 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        transform: translateY(1px) !important;
+    }
+
+    [data-theme="dark"] body.compact-header #fetchStatus {
+        color: #38bdf8 !important;
+    }
+
+    /* Sticky Mode under Compact Header */
+    body.compact-header:not(.legacy-layout) .results-header.desktop-sticky-active {
+        background: var(--header-bg) !important;
+    }
+
+    /* Slogan & branding in Sidebar Footer for Compact Desktop Mode */
+    /* The branding badge fades in in unified lockstep with the other sidebar contents
+       once the open-slide has settled: 0.28s delay covers the 0.3s width slide. */
+    body.compact-header .app-container:not(.sidebar-collapsed) .mobile-sidebar-branding {
+        animation: oleBrandingFade 0.28s ease 0.28s backwards;
+    }
+
+    body.reduce-animations .mobile-sidebar-branding {
+        animation: none !important;
+    }
+
+    @keyframes oleBrandingFade {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    body.compact-header .app-container:not(.sidebar-collapsed) .mobile-sidebar-branding {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.6rem !important;
+        margin-top: auto !important;
+        padding: 1.5rem 1rem 1rem 1rem !important;
+        flex-shrink: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    body.compact-header .mobile-sidebar-branding .logo-icon {
+        font-size: 1.65rem !important;
+        line-height: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        flex-shrink: 0 !important;
+    }
+
+    body.compact-header .mobile-sidebar-branding-text {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 1px !important;
+        justify-content: center !important;
+    }
+
+    body.compact-header .mobile-sidebar-branding-title {
+        font-size: 1.05rem !important;
+        font-weight: 800 !important;
+        color: var(--text) !important;
+        line-height: 1.15 !important;
+    }
+
+    body.compact-header .mobile-sidebar-branding-subtitle {
+        font-size: 0.68rem !important;
+        line-height: 1.15 !important;
+        color: var(--text) !important;
+        opacity: 0.7 !important;
+        margin: 0 !important;
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   LEGACY-SWITCH-ON SIDEBAR EDGE PARITY (desktop, cascade-last)
+   Placed at the very end of the stylesheet so it wins the cascade.
+
+   Runtime polarity: Legacy Layout switch ON == body WITHOUT the
+   .legacy-layout class (applyLegacyLayout receives !checked). Edge-margin
+   parity belongs to THAT mode: the expanded sidebar's screen-edge-facing
+   padding becomes 10px — equal to main content's 10px margin — so the
+   sidebar's internal column lines up with the content column, and the
+   sidebar toggle (which lives in the CONTENT header in this mode) keeps
+   the same 10px offset from whichever edge it docks to.
+
+   In this mode there is no persistent rail (collapse = fully hidden), and
+   the toggle never lives inside the sidebar, so no clearance/pinning rules
+   are needed — unlike the default rail layout, which remains stock.
+   ════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 769px) {
+
+    /* Expanded sidebar — SYMMETRIC edge padding: both sides match the main
+       content's 24px (1.5rem) margin. Identical for either sidebar side, so
+       no separate right-side rule is needed here (border sides are handled
+       by the shared sidebar-right rules). */
+    body:not(.legacy-layout) aside.filters {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    body:not(.legacy-layout) .sidebar-sticky-header {
+        /* FULL-WIDTH background: negative margins bleed the header bar to
+           the sidebar's edges, while its own 24px padding keeps the button
+           aligned with the filter/sort groups below it. */
+        margin-left: -10px;
+        margin-right: -10px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    /* Right-side sidebar + Compact Mode: pin the sidebar toggle as the
+       VISUALLY LAST item of the results-header-right group, hugging the
+       sidebar-facing corner. DOM append order alone can't guarantee this —
+       applyCompactHeader re-docks the settings button at various moments
+       (boot, toggle changes, resize) and kept winning the race. A flex
+       `order` override is immune to all of it. */
+    /* Right sidebar + Compact Mode: the sidebar toggle hugs the
+       sidebar-facing corner of the results header. */
+    body.compact-header.sidebar-right:not(.legacy-layout) .results-header-right #sidebarToggleBtn {
+        order: 99;
+    }
+
+    /* -- Right-sidebar control-order inversion --
+       DEFAULT mode only: the sidebar sticky-header group reads mirrored,
+         [Add/Remove All] [My Library] [Toggle]
+       so the toggle hugs the screen-facing edge.
+       Switch-ON keeps its NATURAL results-header order,
+         [Heart/AddAll] [My Library] [Settings] [Toggle]
+       - no inversion; the toggle still lands last, hugging the
+       sidebar-facing corner. */
+    body.sidebar-right.legacy-layout .sidebar-sticky-header #toggleAllBtn {
+        order: 2;
+    }
+
+    body.sidebar-right.legacy-layout .sidebar-sticky-header #viewSavedBtn {
+        order: 3;
+    }
+
+    body.sidebar-right.legacy-layout .sidebar-sticky-header #sidebarToggleBtn {
+        order: 4;
+    }
+
+    body.sidebar-right:not(.legacy-layout) .results-header-right #sidebarToggleBtn {
+        margin-right: 0 !important;
+    }
+}
+
+.ole-brand-badge {
+    display: none;
+    align-items: center;
+    flex-direction: row;
+    gap: 0.45rem;
+    white-space: nowrap;
+    line-height: 1;
+    vertical-align: middle;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    height: 36px;
+    min-height: 36px;
+    max-height: 36px;
+    box-sizing: border-box;
+    padding: 2px 9px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    isolation: isolate;
+    contain: paint;
+    user-select: none;
+    cursor: default;
+}
+
+.ole-brand-badge .logo-icon {
+    -webkit-text-fill-color: initial;
+    font-size: 1.15rem;
+    line-height: 1;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.ole-brand-badge-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+    justify-content: center;
+    line-height: 1.1;
+}
+
+.ole-brand-badge-title {
+    font-size: 0.88rem;
+    font-weight: 750;
+    letter-spacing: -0.3px;
+    background: linear-gradient(to right, #e0f2fe, #38bdf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    white-space: nowrap;
+    line-height: 1.1;
+}
+
+.ole-brand-badge-subtitle {
+    font-size: 0.60rem;
+    font-weight: 500;
+    opacity: 0.65;
+    color: #cbd5e1;
+    letter-spacing: 0;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+/* Hide brand badge in content header whenever Compact Mode is OFF OR Alternative Layout is ON */
+body:not(.compact-header) #oleBrandBadge,
+body:not(.legacy-layout) #oleBrandBadge {
+    display: none !important;
+}
+
+@media (min-width: 769px) {
+    body.compact-header.legacy-layout #oleBrandBadge {
+        display: inline-flex;
+    }
+
+    /* Tier 1 Graceful Degradation: Hide brand badge precisely when available content space tightens */
+    @container results-main (max-width: 1330px) {
+        .ole-brand-badge {
+            display: none !important;
+        }
+    }
+
+    @media (max-width: 1670px) {
+        body.compact-header .app-container:not(.sidebar-collapsed) .ole-brand-badge {
+            display: none !important;
+        }
+    }
+
+    @media (max-width: 1390px) {
+        body.compact-header .app-container.sidebar-collapsed .ole-brand-badge {
+            display: none !important;
+        }
+    }
+
+    /* Tier 2 Graceful Degradation: Shorten buttons, collapse Library & Search labels (Compact Mode / Crowded Headers) */
+    @container results-main (max-width: 920px) {
+        body.compact-header .btn-word-extra {
+            display: none !important;
+        }
+
+        .results-header #viewSavedBtn .btn-label {
+            display: none !important;
+        }
+
+        .results-header #globalSearchBtn .search-btn-label {
+            display: none !important;
+        }
+
+        .results-header #globalSearchBtn .search-btn-icon {
+            display: inline-block !important;
+        }
+
+        .results-header #globalSearchBtn {
+            width: 36px !important;
+            min-width: 36px !important;
+            padding: 0 !important;
+            justify-content: center !important;
+        }
+    }
+
+    @media (max-width: 1250px) {
+
+        body.compact-header.overlayed-sidebar .app-container:not(.sidebar-collapsed) .btn-word-extra,
+        body.overlayed-sidebar .app-container:not(.sidebar-collapsed) .results-header #viewSavedBtn .btn-label,
+        body.overlayed-sidebar .app-container:not(.sidebar-collapsed) .results-header #globalSearchBtn .search-btn-label {
+            display: none !important;
+        }
+
+        body.overlayed-sidebar .app-container:not(.sidebar-collapsed) .results-header #globalSearchBtn .search-btn-icon {
+            display: inline-block !important;
+        }
+
+        body.overlayed-sidebar .app-container:not(.sidebar-collapsed) .results-header #globalSearchBtn {
+            width: 36px !important;
+            min-width: 36px !important;
+            padding: 0 !important;
+            justify-content: center !important;
+        }
+    }
+
+    /* Tier 3 Ultra-Compact: Discover tabs become icon-only square buttons, Library drops badge (Compact Mode / Very Tight Headers) */
+    @container results-main (max-width: 780px) {
+        body.compact-header .btn-word-core {
+            display: none !important;
+        }
+
+        body.compact-header .discover-btn-icon {
+            display: inline-flex !important;
+        }
+
+        body.compact-header #toggleTrendingBtn,
+        body.compact-header #toggleGenresBtn {
+            padding: 0 8px !important;
+            min-width: 36px !important;
+            justify-content: center !important;
+        }
+
+        .results-header #viewSavedBtn .saved-badge {
+            display: none !important;
+        }
+
+        .results-header #viewSavedBtn {
+            padding: 0 9px !important;
+            min-width: 36px !important;
+            justify-content: center !important;
+        }
+    }
+
+    @media (max-width: 1100px) {
+        body.compact-header.overlayed-sidebar .app-container:not(.sidebar-collapsed) .btn-word-core {
+            display: none !important;
+        }
+
+        body.compact-header.overlayed-sidebar .app-container:not(.sidebar-collapsed) .discover-btn-icon {
+            display: inline-flex !important;
+        }
+
+        body.compact-header.overlayed-sidebar .app-container:not(.sidebar-collapsed) #toggleTrendingBtn,
+        body.compact-header.overlayed-sidebar .app-container:not(.sidebar-collapsed) #toggleGenresBtn {
+            padding: 0 8px !important;
+            min-width: 36px !important;
+            justify-content: center !important;
+        }
+
+        body.overlayed-sidebar .app-container:not(.sidebar-collapsed) .results-header #viewSavedBtn .saved-badge {
+            display: none !important;
+        }
+
+        body.overlayed-sidebar .app-container:not(.sidebar-collapsed) .results-header #viewSavedBtn {
+            padding: 0 9px !important;
+            min-width: 36px !important;
+            justify-content: center !important;
+        }
+    }
+
+    /* Isolate buttons inside the sidebar sticky header from degradation stages */
+    .sidebar-sticky-header #viewSavedBtn .btn-label,
+    .sidebar-sticky-header #toggleAllBtn .btn-label {
+        display: inline-block !important;
+    }
+
+    .sidebar-sticky-header #viewSavedBtn .saved-badge {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .sidebar-sticky-header #viewSavedBtn,
+    .sidebar-sticky-header #toggleAllBtn {
+        min-width: auto !important;
+        width: auto !important;
+        padding: 0 0.85rem !important;
+    }
+}
+
+@media (min-width: 769px) {
+
+    /* Stable gutter on the scrollable content column: keeps the header
+       button pack and the cards at a CONSTANT right offset regardless of
+       whether a vertical scrollbar is present, so the overlay-shifted
+       header group lands snugly beside the floating panel on every
+       machine (classic scrollbars reserve ~17px). */
+    main.results {
+        scrollbar-gutter: stable;
+    }
+
+    /* With Sidebar RIGHT and Compact Mode OFF, align the top header settings
+       button with the 36px rail buttons below it (10.5px from the screen edge). */
+    body.sidebar-right:not(.compact-header) header {
+        padding-right: 10.5px;
+    }
+}
+
+@media (max-width: 768px) {
+
+    /* Overlayed Sidebar is a desktop-only feature - hide its control on mobile */
+    .overlayed-sidebar-row {
+        display: none !important;
+    }
+}
+
+@media (hover: hover) and (pointer: fine) and (max-width: 768px) {
+
+    /* On desktop browsers resized to mobile widths, lock into Alternative mode and hide toggle */
+    .mobile-layout-row {
+        display: none !important;
+    }
+}
+
+/* Ordered cover loader: pending covers keep a quiet placeholder surface
+   until the sequencer assigns their src in reading order. */
+img.cover-pending {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: var(--card-bg);
+    color: transparent;
+    font-size: 0;
 }

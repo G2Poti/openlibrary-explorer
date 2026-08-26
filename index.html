@@ -13,10 +13,28 @@
 </head>
 
 <body class="mobile-legacy-layout">
+    <!-- Apply the persisted sidebar side before first paint so the layout
+         doesn't flash left-side on reload. Mirrors the theme's early
+         application; safeStorage in script.js is the source of truth. -->
+    <script>
+        try {
+            if (localStorage.getItem('ole_sidebar_side') === 'right') {
+                document.body.classList.add('sidebar-right');
+            }
+            if (localStorage.getItem('ole_classic_layout') === 'true') {
+                document.body.classList.remove('legacy-layout');
+            } else {
+                document.body.classList.add('legacy-layout');
+            }
+        } catch (e) {}
+    </script>
     <header>
         <div class="brand">
-            <h1><span class="logo-icon">📚</span> OpenLibrary Explorer</h1>
-            <p class="brand-subtitle">Explore millions of books from the Open Library archives</p>
+            <span class="logo-icon">📚</span>
+            <div class="brand-text">
+                <h1>OpenLibrary Explorer</h1>
+                <p class="brand-subtitle">Browse millions of books your way</p>
+            </div>
         </div>
         <div class="header-search-container">
             <button id="homeBtn" class="nav-btn" title="Home Dashboard" style="padding: 0 0.75rem;">
@@ -37,36 +55,9 @@
                 <button id="globalSearchClearBtn" class="search-clear-btn" title="Clear search"
                     style="display: none;">✕</button>
             </div>
-            <button id="globalSearchBtn" class="search-btn">Search</button>
+            <button id="globalSearchBtn" class="search-btn"><svg class="search-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><span class="search-btn-label">Search</span></button>
         </div>
         <div class="header-controls">
-            <div class="toggle-switch-wrapper" id="headerThemeWrapper" style="margin-right: 5px;">
-                <label class="theme-switch" for="checkbox">
-                    <input type="checkbox" id="checkbox" />
-                    <div class="slider">
-                        <span class="icon sun">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="5"></circle>
-                                <line x1="12" y1="1" x2="12" y2="3"></line>
-                                <line x1="12" y1="21" x2="12" y2="23"></line>
-                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                                <line x1="1" y1="12" x2="3" y2="12"></line>
-                                <line x1="21" y1="12" x2="23" y2="12"></line>
-                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                            </svg>
-                        </span>
-                        <span class="icon moon">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                            </svg>
-                        </span>
-                    </div>
-                </label>
-            </div>
             <button id="settingsBtn" class="icon-btn-top" title="Advanced Settings">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                     stroke-linecap="round" stroke-linejoin="round">
@@ -77,14 +68,21 @@
                 </svg>
             </button>
         </div>
-        <div id="settingsPanel" class="settings-dropdown" style="display: none;">
-            <div class="settings-dropdown-header">
-                <span class="settings-title">Settings</span>
-                <button id="settingsCloseBtn" class="settings-close-btn">&times;</button>
-            </div>
-            <div class="settings-content">
+    </header>
+
+    <div id="settingsPanel" class="settings-dropdown" style="display: none;">
+        <div class="settings-dropdown-header">
+            <span class="settings-title">Settings</span>
+            <button id="settingsCloseBtn" class="settings-close-btn">&times;</button>
+        </div>
+        <div class="settings-tabs" role="tablist">
+            <button type="button" class="settings-tab active" data-tab="preferences" role="tab" aria-selected="true">Preferences</button>
+            <button type="button" class="settings-tab" data-tab="advanced" role="tab" aria-selected="false">Advanced</button>
+        </div>
+        <div class="settings-content">
+            <div id="settingsTabPreferences" class="settings-tab-pane active">
                 <div class="settings-category" id="categoryAppearance">
-                    <div class="settings-category-title">General</div>
+                    <div class="settings-category-title">Appearance</div>
                     <div class="settings-row" title="Toggle between Dark and Light mode">
                         <span class="settings-label">Dark Mode</span>
                         <label class="theme-switch" for="mobileThemeCheckbox">
@@ -144,21 +142,19 @@
                             </div>
                         </label>
                     </div>
-                    <div class="settings-row legacy-layout-row" title="Switch to the classic sidebar/header layout">
-                        <span class="settings-label">Legacy Layout</span>
-                        <label class="theme-switch" for="legacyLayoutToggle">
-                            <input type="checkbox" id="legacyLayoutToggle">
-                            <div class="slider url-slider"></div>
-                        </label>
+                </div>
+
+                <div class="settings-category" id="categoryLibrary">
+                    <div class="settings-row library-only-row" title="Export your library bookmarks to a JSON file">
+                        <span class="settings-label">Export Library</span>
+                        <button id="exportLibraryBtn" type="button" class="settings-action-btn">Export</button>
                     </div>
-                    <div class="settings-row mobile-layout-row"
-                        title="Experimental: swap the mobile sidebar for a full-screen, swipe-gesture-driven version. Bug-testing build.">
-                        <span class="settings-label">Alternative Layout</span>
-                        <label class="theme-switch" for="mobileLayoutToggle">
-                            <input type="checkbox" id="mobileLayoutToggle">
-                            <div class="slider url-slider"></div>
-                        </label>
+                    <div class="settings-row library-only-row" title="Import library bookmarks from a JSON or CSV backup file">
+                        <span class="settings-label">Import Library</span>
+                        <button id="importLibraryBtn" type="button" class="settings-action-btn">Import</button>
+                        <input type="file" id="importFileInput" accept=".json,.csv" style="display: none;">
                     </div>
+                    <div id="importStatusMsg" aria-live="polite" style="display: none; font-size: 0.8rem; padding: 6px 8px; margin-top: 6px; border-radius: 4px; background: rgba(59, 130, 246, 0.15); color: var(--text); text-align: center;"></div>
                 </div>
 
                 <!-- Search-only settings: the whole category (title + rows) is
@@ -200,82 +196,143 @@
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <details class="settings-advanced" id="advancedSettingsDetails">
-                    <summary class="settings-advanced-summary">
-                        <span>Advanced Settings</span>
-                    </summary>
-                    <div class="settings-advanced-content">
-                        <div class="settings-category" id="categoryAdvancedGeneral">
-                            <div class="settings-category-title">General</div>
-                            <div class="settings-row"
-                                title="Reduce decorative motion across the app — the translation highlight on book covers, the mobile sidebar swipe hint's nudge, and similar effects">
-                                <span class="settings-label">Reduce Animations</span>
-                                <label class="theme-switch" for="reduceAnimationsToggle">
-                                    <input type="checkbox" id="reduceAnimationsToggle">
-                                    <div class="slider url-slider"></div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="settings-category" id="categoryTranslation">
-                            <div class="settings-category-title">Translation</div>
-                            <div class="settings-row"
-                                title="Enable automatic book title translation to match your filter language">
-                                <span class="settings-label">Title Translation</span>
-                                <label class="theme-switch" for="translateToggle">
-                                    <input type="checkbox" id="translateToggle" checked>
-                                    <div class="slider url-slider"></div>
-                                </label>
-                            </div>
-                            <div class="settings-row" id="completeTranslationRow"
-                                title="Complete Translation: Blocks search results from rendering until all translations load (better quality, slower search). If off, titles load instantly in English and swap in asynchronously (better quality, slower search).">
-                                <span class="settings-label">Complete Translation</span>
-                                <label class="theme-switch" for="completeTranslateToggle">
-                                    <input type="checkbox" id="completeTranslateToggle">
-                                    <div class="slider url-slider"></div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="settings-category" id="categoryUrl">
-                            <div class="settings-category-title">URL</div>
-                            <div class="settings-row" title="Enable URL State Persistence">
-                                <span class="settings-label">URL Sync</span>
-                                <label class="theme-switch" for="persistToggle">
-                                    <input type="checkbox" id="persistToggle" checked>
-                                    <div class="slider url-slider"></div>
-                                </label>
-                            </div>
-                            <div class="settings-row" title="Copy a shareable link with your current search/filters">
-                                <span class="settings-label">Copy URL</span>
-                                <button id="copyUrlBtn" type="button" class="theme-switch url-copy-btn">
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Search-only settings: entire category (title + rows) is hidden together while in Library view -->
-                        <div class="settings-category" id="searchOptionsCategory">
-                            <div class="settings-category-title">Search Options</div>
-                            <div class="settings-row search-only-row"
-                                title="Aggregates and intelligently combines matching subject tags for more accurate autocomplete suggestions.">
-                                <span class="settings-label">Enhanced Autocomplete</span>
-                                <label class="theme-switch" for="enhancedAutofillToggle">
-                                    <input type="checkbox" id="enhancedAutofillToggle" checked>
-                                    <div class="slider url-slider"></div>
-                                </label>
-                            </div>
-                        </div>
+            <div id="settingsTabAdvanced" class="settings-tab-pane" style="display: none;">
+                <div class="settings-category" id="categoryAdvancedAppearance">
+                    <div class="settings-category-title">Appearance</div>
+                    <div class="settings-row compact-header-row"
+                        title="Desktop: hide the top site header and merge search, home navigation, and settings into the content header. Slogan moves to the sidebar footer.">
+                        <span class="settings-label">Compact Mode</span>
+                        <label class="theme-switch" for="compactHeaderToggle">
+                            <input type="checkbox" id="compactHeaderToggle">
+                            <div class="slider url-slider"></div>
+                        </label>
                     </div>
-                </details>
+                    <div class="settings-row legacy-layout-row" title="Switch between default and alternate sidebar/header layout">
+                        <span class="settings-label">Alternate Layout</span>
+                        <label class="theme-switch" for="legacyLayoutToggle">
+                            <input type="checkbox" id="legacyLayoutToggle">
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
+                    <div class="settings-row"
+                        title="Choose which side of the screen the sidebar sits on. Applies to every layout.">
+                        <span class="settings-label">Sidebar Position</span>
+                        <label class="theme-switch" for="sidebarSideToggle">
+                            <input type="checkbox" id="sidebarSideToggle">
+                            <div class="slider">
+                                <span class="icon sidebar-side-letter">L</span>
+                                <span class="icon sidebar-side-letter">R</span>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="settings-row overlayed-sidebar-row"
+                        title="The expanded sidebar floats over the content instead of squeezing it, with a soft blur behind it (the results header stays crisp). Works in both layout modes on desktop.">
+                        <span class="settings-label">Overlayed Sidebar</span>
+                        <label class="theme-switch" for="overlayedSidebarToggle">
+                            <input type="checkbox" id="overlayedSidebarToggle">
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
+                    <div class="settings-row mobile-layout-row"
+                        title="Experimental: swap the mobile sidebar for a full-screen, swipe-gesture-driven version. Bug-testing build.">
+                        <span class="settings-label">Alternative Layout</span>
+                        <label class="theme-switch" for="mobileLayoutToggle">
+                            <input type="checkbox" id="mobileLayoutToggle">
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-category" id="categoryAdvancedGeneral">
+                    <div class="settings-category-title">General</div>
+                    <div class="settings-row"
+                        title="Reduce decorative motion across the app — the translation highlight on book covers, the mobile sidebar swipe hint's nudge, and similar effects">
+                        <span class="settings-label">Reduce Animations</span>
+                        <label class="theme-switch" for="reduceAnimationsToggle">
+                            <input type="checkbox" id="reduceAnimationsToggle">
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
+                    <div class="settings-row"
+                        title="Clean up Open Library synopses by removing Wikipedia citation noise ([1]), stripping spam links, and formatting clean typography and paragraphs.">
+                        <span class="settings-label">Clean Synopses</span>
+                        <label class="theme-switch" for="cleanSynopsisToggle">
+                            <input type="checkbox" id="cleanSynopsisToggle" checked>
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
+                    <div class="settings-row"
+                        title="Auto-capitalize subject tags into clean title-case across your library (keeping minor words like 'and', 'of', 'the' lowercase).">
+                        <span class="settings-label">Clean Subjects</span>
+                        <label class="theme-switch" for="cleanLibrarySubjectsToggle">
+                            <input type="checkbox" id="cleanLibrarySubjectsToggle" checked>
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-category" id="categoryTranslation">
+                    <div class="settings-category-title">Translation</div>
+                    <div class="settings-row"
+                        title="Enable automatic book title translation to match your filter language">
+                        <span class="settings-label">Title Translation</span>
+                        <label class="theme-switch" for="translateToggle">
+                            <input type="checkbox" id="translateToggle" checked>
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
+                    <div class="settings-row" id="completeTranslationRow"
+                        title="Complete Translation: Blocks search results from rendering until all translations load (better quality, slower search). If off, titles load instantly in English and swap in asynchronously (better quality, slower search).">
+                        <span class="settings-label">Complete Translation</span>
+                        <label class="theme-switch" for="completeTranslateToggle">
+                            <input type="checkbox" id="completeTranslateToggle">
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-category" id="categoryUrl">
+                    <div class="settings-category-title">URL</div>
+                    <div class="settings-row" title="Enable URL State Persistence">
+                        <span class="settings-label">URL Sync</span>
+                        <label class="theme-switch" for="persistToggle">
+                            <input type="checkbox" id="persistToggle" checked>
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
+                    <div class="settings-row" title="Copy a shareable link with your current search/filters">
+                        <span class="settings-label">Copy URL</span>
+                        <button id="copyUrlBtn" type="button" class="theme-switch url-copy-btn">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search-only settings: entire category (title + rows) is hidden together while in Library view -->
+                <div class="settings-category" id="searchOptionsCategory">
+                    <div class="settings-category-title">Search Options</div>
+                    <div class="settings-row search-only-row"
+                        title="Aggregates and intelligently combines matching subject tags for more accurate autocomplete suggestions.">
+                        <span class="settings-label">Enhanced Autocomplete</span>
+                        <label class="theme-switch" for="enhancedAutofillToggle">
+                            <input type="checkbox" id="enhancedAutofillToggle" checked>
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-category" id="categoryAdvancedReset">
+                    <div class="settings-category-title">Reset to Default</div>
+                    <button id="resetSettingsBtn" type="button" class="settings-reset-btn" title="Reset all application settings and preferences to their original defaults">Reset to Default</button>
+                </div>
             </div>
         </div>
-    </header>
+    </div>
     <!-- Mobile Alternative Layout only: multi-select action bar pinned below the
          fixed header. Shown when the user enters selection mode by long-pressing
          a book card. All rules are scoped under body.mobile-legacy-layout so it
@@ -288,11 +345,35 @@
             <button id="selectionBulkBtn" class="selection-bulk-btn">Add to Library</button>
         </div>
     </div>
+    <!-- Overlayed Sidebar backdrop (desktop, Legacy Layout ON + Overlayed Sidebar ON):
+         blurred dim layer behind the floating sidebar. Sits BEFORE .app-container in the
+         DOM so the sibling combinator can show it only while the sidebar is expanded.
+         The results header deliberately stacks ABOVE this layer (z-index) so it stays
+         crisp and interactive while everything behind blurs. -->
+    <div id="sidebarOverlayBackdrop" class="sidebar-overlay-backdrop"></div>
     <div class="app-container sidebar-collapsed">
         <aside class="filters" id="sidebarContainer">
             <div class="sidebar-sticky-header" id="sidebarStickyHeader">
                 <button id="resetBtn" class="secondary-btn">Reset</button>
                 <button id="searchBtn" class="primary-btn" disabled>Find Books</button>
+                <!-- Legacy Layout (switch ON) replaces Reset/Find Books with this single
+                     combined action — Find Books is redundant with the always-visible
+                     header search. Hidden by default; shown via CSS on desktop only when
+                     body does NOT have .legacy-layout (i.e. Legacy Layout switch is ON). -->
+                <button id="resetFiltersSortBtn" class="secondary-btn" title="Reset all filters and sort to defaults"
+                    style="display:none;">Reset Filters and Sort</button>
+                <!-- Overlayed Sidebar mode (Legacy Layout ON only): close button living
+                     INSIDE the sidebar header, because the overlay draws over the outer
+                     toggle's spot in the results header. Purely a delegate — it clicks
+                     #sidebarToggleBtn so collapse state keeps a single source of truth. -->
+                <button id="sidebarOverlayCloseBtn" class="nav-btn" title="Close Sidebar" style="display:none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                        <line x1="9" y1="3" x2="9" y2="21"></line>
+                        <path d="M16 15l-3-3 3-3"></path>
+                    </svg>
+                </button>
                 <!-- Anchor for the sidebar header buttons: toggleAllBtn, viewSavedBtn, and sidebarToggleBtn
                      get moved here via JS when Legacy Layout is enabled — and on mobile the Library /
                      Add-Remove-All buttons always live in this header, in both mobile layouts. -->
@@ -680,10 +761,11 @@
                  gets pushed down (and out of view, scrollable) if Filter/Sort
                  sections are expanded and push past the available height. -->
             <div class="mobile-sidebar-branding" aria-hidden="true">
-                <div class="mobile-sidebar-branding-title"><span class="logo-icon">📚</span> OpenLibrary Explorer
+                <span class="logo-icon">📚</span>
+                <div class="mobile-sidebar-branding-text">
+                    <div class="mobile-sidebar-branding-title">OpenLibrary Explorer</div>
+                    <p class="mobile-sidebar-branding-subtitle">Browse millions of books your way</p>
                 </div>
-                <p class="mobile-sidebar-branding-subtitle">Explore millions of books from the Open Library archives
-                </p>
             </div>
         </aside>
         <!-- Mobile Legacy Layout only: a swipe-to-open discoverability hint.
@@ -728,16 +810,17 @@
                             <div id="querySpeedTooltip" class="tooltip-content"
                                 style="width: auto; max-width: 320px; white-space: nowrap; font-size: 0.78rem;"></div>
                         </div>
-                        <span id="fetchStatus"
+                        <span id="fetchStatus" aria-live="polite"
                             style="font-size: 0.82rem; font-weight: 600; color: var(--accent); transition: opacity 0.5s ease;"></span>
                     </div>
                     <div id="discoverDashboardToggles" style="display: none; align-items: center; gap: 0.5rem;">
-                        <button id="toggleTrendingBtn" class="nav-btn active">Trending Books</button>
-                        <button id="toggleGenresBtn" class="nav-btn">Popular Genres</button>
+                        <button id="toggleTrendingBtn" class="nav-btn active"><svg class="discover-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg><span class="btn-word-extra">Trending </span><span class="btn-word-core">Books</span></button>
+                        <button id="toggleGenresBtn" class="nav-btn"><svg class="discover-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg><span class="btn-word-extra">Popular </span><span class="btn-word-core">Genres</span></button>
                     </div>
                 </div>
                 <div id="stageToasts" class="stage-toasts"></div>
                 <div class="results-header-right">
+                    <span id="oleBrandBadge" class="ole-brand-badge" title="OpenLibrary Explorer"><span class="logo-icon">📚</span><span class="ole-brand-badge-text"><span class="ole-brand-badge-title">OpenLibrary Explorer</span><span class="ole-brand-badge-subtitle">Browse millions of books your way</span></span></span>
                     <button id="toggleAllBtn" class="nav-btn" style="display: none;"></button>
                     <button id="viewSavedBtn" class="nav-btn" title="Toggle My Library">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -749,11 +832,11 @@
                     </button>
                 </div>
             </div>
-            <div id="statusMessage" style="display: none;"></div>
+            <div id="statusMessage" aria-live="polite" style="display: none;"></div>
             <div id="discoverDashboard" class="discover-dashboard" style="display: none;"></div>
             <div id="bookGrid" class="book-grid"></div>
             <div id="resultsFooter" class="results-footer">
-                <div id="hiddenMessage" class="hidden-message" style="display: none;"></div>
+                <div id="hiddenMessage" class="hidden-message" aria-live="polite" style="display: none;"></div>
                 <button id="loadMoreBtn">Find More Books</button>
             </div>
         </main>
