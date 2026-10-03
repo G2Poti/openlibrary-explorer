@@ -6,6 +6,7 @@
     <link rel="dns-prefetch" href="https://covers.openlibrary.org">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="OpenLibrary Explorer - Fast, responsive, and privacy-friendly catalog explorer for Open Library books with instant covers, advanced filtering, and library management.">
     <title>OpenLibrary Explorer</title>
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>📚</text></svg>">
@@ -15,7 +16,7 @@
 <body class="mobile-legacy-layout">
     <!-- Apply the persisted sidebar side before first paint so the layout
          doesn't flash left-side on reload. Mirrors the theme's early
-         application; safeStorage in script.js is the source of truth. -->
+         application; safeStorage in storage-cache.js is the source of truth. -->
     <script>
         try {
             if (localStorage.getItem('ole_sidebar_side') === 'right') {
@@ -37,7 +38,7 @@
             </div>
         </div>
         <div class="header-search-container">
-            <button id="homeBtn" class="nav-btn" title="Home Dashboard" style="padding: 0 0.75rem;">
+            <button id="homeBtn" class="nav-btn" title="Home Dashboard" aria-label="Home Dashboard" style="padding: 0 0.75rem;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                     stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -58,7 +59,7 @@
             <button id="globalSearchBtn" class="search-btn"><svg class="search-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><span class="search-btn-label">Search</span></button>
         </div>
         <div class="header-controls">
-            <button id="settingsBtn" class="icon-btn-top" title="Advanced Settings">
+            <button id="settingsBtn" class="icon-btn-top" title="Advanced Settings" aria-label="Advanced Settings">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                     stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
@@ -73,7 +74,7 @@
     <div id="settingsPanel" class="settings-dropdown" style="display: none;">
         <div class="settings-dropdown-header">
             <span class="settings-title">Settings</span>
-            <button id="settingsCloseBtn" class="settings-close-btn">&times;</button>
+            <button id="settingsCloseBtn" class="settings-close-btn" aria-label="Close Settings">&times;</button>
         </div>
         <div class="settings-tabs" role="tablist">
             <button type="button" class="settings-tab active" data-tab="preferences" role="tab" aria-selected="true">Preferences</button>
@@ -141,6 +142,22 @@
                                 </span>
                             </div>
                         </label>
+                    </div>
+                    <div class="settings-row desktop-only-row"
+                        title="Inertial smooth scrolling for mouse wheel navigation on desktop, providing fluid momentum scrolling similar to smooth scrolling mods.">
+                        <span class="settings-label">Smooth Scrolling</span>
+                        <label class="theme-switch" for="smoothScrollingToggle">
+                            <input type="checkbox" id="smoothScrollingToggle" checked>
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-category desktop-only-category" id="categoryInfo">
+                    <div class="settings-category-title">Info</div>
+                    <div class="settings-row" title="View all keyboard shortcuts and interaction tips">
+                        <span class="settings-label">Keyboard Shortcuts</span>
+                        <button id="viewShortcutsBtn" type="button" class="settings-action-btn">View</button>
                     </div>
                 </div>
 
@@ -282,6 +299,14 @@
                             <div class="slider url-slider"></div>
                         </label>
                     </div>
+                    <div class="settings-row" id="translateCoversRow"
+                        title="Translate Covers: Automatically updates book cover images to match the selected language edition when available.">
+                        <span class="settings-label">Translate Covers</span>
+                        <label class="theme-switch" for="translateCoversToggle">
+                            <input type="checkbox" id="translateCoversToggle" checked>
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
                     <div class="settings-row" id="completeTranslationRow"
                         title="Complete Translation: Blocks search results from rendering until all translations load (better quality, slower search). If off, titles load instantly in English and swap in asynchronously (better quality, slower search).">
                         <span class="settings-label">Complete Translation</span>
@@ -326,11 +351,25 @@
                     </div>
                 </div>
 
+                <div class="settings-category" id="categoryMisc">
+                    <div class="settings-category-title">Misc</div>
+                    <div class="settings-row" title="Keep the settings panel open when clicking outside. Only the close button (×) will close it.">
+                        <span class="settings-label">Pin Settings</span>
+                        <label class="theme-switch" for="pinSettingsToggle">
+                            <input type="checkbox" id="pinSettingsToggle">
+                            <div class="slider url-slider"></div>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="settings-category" id="categoryAdvancedReset">
                     <div class="settings-category-title">Reset to Default</div>
                     <button id="resetSettingsBtn" type="button" class="settings-reset-btn" title="Reset all application settings and preferences to their original defaults">Reset to Default</button>
                 </div>
             </div>
+        </div>
+        <div class="settings-version-banner" id="settingsVersionBanner" title="Open Library Explorer v1.8">
+            v1.8
         </div>
     </div>
     <!-- Mobile Alternative Layout only: multi-select action bar pinned below the
@@ -366,7 +405,7 @@
                      INSIDE the sidebar header, because the overlay draws over the outer
                      toggle's spot in the results header. Purely a delegate — it clicks
                      #sidebarToggleBtn so collapse state keeps a single source of truth. -->
-                <button id="sidebarOverlayCloseBtn" class="nav-btn" title="Close Sidebar" style="display:none;">
+                <button id="sidebarOverlayCloseBtn" class="nav-btn" title="Close Sidebar" aria-label="Close Sidebar" style="display:none;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="3" width="18" height="18" rx="2"></rect>
@@ -383,13 +422,13 @@
                  alongside the dedicated Filter/Sort shortcut buttons below, to keep a usable icon rail
                  in the thin collapsed strip instead of hiding everything. -->
             <div class="legacy-collapsed-rail" id="legacyCollapsedRail">
-                <button id="railFilterBtn" class="nav-btn rail-btn" title="Filter">
+                <button id="railFilterBtn" class="nav-btn rail-btn" title="Filter" aria-label="Filter">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                         stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                     </svg>
                 </button>
-                <button id="railSortBtn" class="nav-btn rail-btn" title="Sort">
+                <button id="railSortBtn" class="nav-btn rail-btn" title="Sort" aria-label="Sort">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                         stroke-linecap="round" stroke-linejoin="round">
                         <line x1="18" y1="21" x2="18" y2="3"></line>
@@ -406,7 +445,7 @@
                         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                     </svg>
                     <span>Filter</span>
-                    <button id="clearFiltersBtn" title="Clear all filters"
+                    <button id="clearFiltersBtn" title="Clear all filters" aria-label="Clear all filters"
                         class="sub-reset-btn header-reset-btn">✕</button>
                 </summary>
                 <div class="group-content">
@@ -421,34 +460,13 @@
                                 </svg>
                                 <span>Include</span>
                             </div>
-                            <button class="sub-reset-btn" data-target="include" title="Clear Include filters">✕</button>
+                            <button class="sub-reset-btn" data-target="include" title="Clear Include filters" aria-label="Clear Include filters">✕</button>
                         </summary>
                         <div class="filter-content">
                             <div class="autocomplete-wrapper">
                                 <div
                                     style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.4rem;">
-                                    <label style="margin-bottom:0;">Subject</label>
-                                    <div class="tooltip-wrapper">
-                                        <div class="tooltip-icon">
-                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                                                stroke-linejoin="round">
-                                                <circle cx="12" cy="12" r="10"></circle>
-                                                <line x1="12" y1="16" x2="12" y2="12"></line>
-                                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                            </svg>
-                                        </div>
-                                        <div class="tooltip-content tooltip-left">
-                                            <div
-                                                style="margin-bottom:6px; padding-bottom:4px; border-bottom:1px solid var(--border);">
-                                                <strong>Input Field:</strong><br><i>Tab</i>: Auto-complete
-                                                tag<br><i>Enter / Comma</i>: Add tag<br><i>Backspace</i>: Delete one
-                                                letter<br><i>Delete</i>: Remove entire tag
-                                            </div>
-                                            <div><strong>Book Cards:</strong><br><i>Shift+Click</i>: Include
-                                                Subject<br><i>Ctrl+Click</i>: Exclude Subject</div>
-                                        </div>
-                                    </div>
+                                    <label for="incSubject" style="margin-bottom:0;">Subject</label>
                                 </div>
                                 <div class="tag-input-container" id="incSubjectContainer">
                                     <div
@@ -462,7 +480,7 @@
                                 <ul id="incSubjectList" class="autocomplete-list"></ul>
                             </div>
                             <div>
-                                <label>Language</label>
+                                <label for="incLang">Language</label>
                                 <select id="incLang" class="watch-input">
                                     <option value="">Any Language</option>
                                     <option value="eng">English</option>
@@ -509,20 +527,20 @@
                                 </summary>
                                 <div class="filter-content">
                                     <div>
-                                        <label>Title</label>
+                                        <label for="incTitle">Title</label>
                                         <input type="text" id="incTitle" class="watch-input" placeholder="e.g., Dune">
                                     </div>
                                     <div>
-                                        <label>Author</label>
+                                        <label for="incAuthor">Author</label>
                                         <input type="text" id="incAuthor" class="watch-input"
                                             placeholder="e.g., Frank Herbert">
                                     </div>
                                     <div>
-                                        <label>Place</label>
+                                        <label for="incPlace">Place</label>
                                         <input type="text" id="incPlace" class="watch-input" placeholder="e.g., London">
                                     </div>
                                     <div>
-                                        <label>Person / Character</label>
+                                        <label for="incPerson">Person / Character</label>
                                         <input type="text" id="incPerson" class="watch-input"
                                             placeholder="e.g., Sherlock Holmes">
                                     </div>
@@ -541,34 +559,13 @@
                                 </svg>
                                 <span>Exclude</span>
                             </div>
-                            <button class="sub-reset-btn" data-target="exclude" title="Clear Exclude filters">✕</button>
+                            <button class="sub-reset-btn" data-target="exclude" title="Clear Exclude filters" aria-label="Clear Exclude filters">✕</button>
                         </summary>
                         <div class="filter-content">
                             <div class="autocomplete-wrapper">
                                 <div
                                     style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.4rem;">
-                                    <label style="margin-bottom:0;">Subject</label>
-                                    <div class="tooltip-wrapper">
-                                        <div class="tooltip-icon">
-                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round">
-                                                <circle cx="12" cy="12" r="10"></circle>
-                                                <line x1="12" y1="16" x2="12" y2="12"></line>
-                                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                            </svg>
-                                        </div>
-                                        <div class="tooltip-content tooltip-left">
-                                            <div
-                                                style="margin-bottom:6px; padding-bottom:4px; border-bottom:1px solid var(--border);">
-                                                <strong>Input Field:</strong><br><i>Tab</i>: Auto-complete
-                                                tag<br><i>Enter / Comma</i>: Add tag<br><i>Backspace</i>: Delete 1
-                                                letter<br><i>Delete</i>: Remove entire tag
-                                            </div>
-                                            <div><strong>Book Cards:</strong><br><i>Shift+Click</i>: Include
-                                                Subject<br><i>Ctrl+Click</i>: Exclude Subject</div>
-                                        </div>
-                                    </div>
+                                    <label for="excSubject" style="margin-bottom:0;">Subject</label>
                                 </div>
                                 <div class="tag-input-container" id="excSubjectContainer">
                                     <div
@@ -582,7 +579,7 @@
                                 <ul id="excSubjectList" class="autocomplete-list"></ul>
                             </div>
                             <div>
-                                <label>Language</label>
+                                <label for="excLang">Language</label>
                                 <select id="excLang" class="watch-input">
                                     <option value="">Any Language</option>
                                     <option value="eng">English</option>
@@ -629,11 +626,11 @@
                                 </summary>
                                 <div class="filter-content">
                                     <div>
-                                        <label>Place</label>
+                                        <label for="excPlace">Place</label>
                                         <input type="text" id="excPlace" class="watch-input" placeholder="e.g., France">
                                     </div>
                                     <div>
-                                        <label>Person / Character</label>
+                                        <label for="excPerson">Person / Character</label>
                                         <input type="text" id="excPerson" class="watch-input"
                                             placeholder="e.g., Dracula">
                                     </div>
@@ -655,16 +652,16 @@
                                 <span>Release & Metrics</span>
                             </div>
                             <button class="sub-reset-btn" data-target="metrics"
-                                title="Clear Release & Metrics filters">✕</button>
+                                title="Clear Release & Metrics filters" aria-label="Clear Release & Metrics filters">✕</button>
                         </summary>
                         <div class="filter-content">
                             <div class="grid-2">
                                 <div>
-                                    <label>Published From</label>
+                                    <label for="minYear">Published From</label>
                                     <input type="number" id="minYear" class="watch-input" placeholder="Year">
                                 </div>
                                 <div>
-                                    <label>Published To</label>
+                                    <label for="maxYear">Published To</label>
                                     <input type="number" id="maxYear" class="watch-input" placeholder="Year">
                                 </div>
                             </div>
@@ -672,27 +669,13 @@
                                 <div>
                                     <div
                                         style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.4rem;">
-                                        <label style="margin-bottom:0;">Min Rating</label>
-                                        <div class="tooltip-wrapper">
-                                            <div class="tooltip-icon">
-                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                                                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                                                    stroke-linejoin="round">
-                                                    <circle cx="12" cy="12" r="10"></circle>
-                                                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                                </svg>
-                                            </div>
-                                            <div class="tooltip-content" style="width: 120px">Applied client-side
-                                                <br>after initial API fetch.
-                                            </div>
-                                        </div>
+                                        <label for="minStarRating" style="margin-bottom:0;">Min Rating</label>
                                     </div>
                                     <input type="number" id="minStarRating" class="watch-input" placeholder="1-5"
                                         min="1" max="5" step="0.1">
                                 </div>
                                 <div>
-                                    <label style="margin-bottom:0;">Min Reviews</label>
+                                    <label for="minRatings" style="margin-bottom:0;">Min Reviews</label>
                                     <input type="number" id="minRatings" class="watch-input" placeholder="e.g., 50"
                                         style="margin-top: 0.4rem;">
                                 </div>
@@ -711,7 +694,7 @@
                         <polyline points="11 8 6 3 1 8"></polyline>
                     </svg>
                     <span>Sort</span>
-                    <button id="sortResetBtn" title="Reset sort to default" class="sub-reset-btn header-reset-btn"
+                    <button id="sortResetBtn" title="Reset sort to default" aria-label="Reset sort to default" class="sub-reset-btn header-reset-btn"
                         style="display: inline-flex; align-items: center; justify-content: center;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                             stroke-linecap="round" stroke-linejoin="round" width="14" height="14"
@@ -725,7 +708,7 @@
                     <div class="filter-content" style="padding-top: 0.25rem;">
                         <div style="display: flex; flex-direction: column; gap: 0.4rem;">
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <select id="sortSelect" class="watch-input" style="flex: 1;">
+                                <select id="sortSelect" class="watch-input" style="flex: 1;" aria-label="Sort by">
                                     <option value="date" id="sortDateOpt" style="display:none;">Date Added</option>
                                     <option value="relevance" id="sortRelevanceOpt" selected>Relevance</option>
                                     <option value="rating">Rating</option>
@@ -734,7 +717,7 @@
                                     <option value="new">Publishing Date</option>
                                     <option value="random">Random</option>
                                 </select>
-                                <button id="sortDirBtn" title="Toggle sort direction"
+                                <button id="sortDirBtn" title="Toggle sort direction" aria-label="Toggle sort direction"
                                     style="background: var(--card-bg); border: 1px solid var(--border); color: var(--text); cursor: pointer; padding: 0.5rem 0.6rem; border-radius: 4px; transition: all 0.2s; flex-shrink: 0; line-height: 1;"></button>
                             </div>
                         </div>
@@ -746,7 +729,7 @@
                     </div>
                 </div>
             </details>
-            <button id="mobileSettingsBtn" class="mobile-sidebar-settings-btn nav-btn" title="Settings">
+            <button id="mobileSettingsBtn" class="mobile-sidebar-settings-btn nav-btn" title="Settings" aria-label="Settings">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                     stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
@@ -773,7 +756,7 @@
              the sidebar clips horizontal overflow while open — a tab poking
              out of its right edge would be cut off. Anchored to the
              app-container instead and slid to the sidebar's right edge via
-             --ear-open-offset (kept in sync by script.js), so while collapsed
+             --ear-open-offset (kept in sync by app-ui.js), so while collapsed
              it sits at the screen's left edge and once open it docks at the
              content boundary, where its arrow flips into a collapse arrow. -->
         <div id="mobileSidebarSwipeHint" class="mobile-swipe-hint" title="Swipe right to open" aria-hidden="true">
@@ -786,7 +769,7 @@
         <main class="results">
             <div id="resultsHeader" class="results-header">
                 <div class="results-header-left">
-                    <button id="sidebarToggleBtn" class="sidebar-toggle-btn nav-btn" title="Toggle Sidebar"
+                    <button id="sidebarToggleBtn" class="sidebar-toggle-btn nav-btn" title="Toggle Sidebar" aria-label="Toggle Sidebar"
                         style="margin-right: 0.5rem; width: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; flex-shrink: 0;">
                         <svg class="toggle-icon-expanded" style="width:18px;height:18px;" viewBox="0 0 24 24"
                             fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
@@ -821,8 +804,8 @@
                 <div id="stageToasts" class="stage-toasts"></div>
                 <div class="results-header-right">
                     <span id="oleBrandBadge" class="ole-brand-badge" title="OpenLibrary Explorer"><span class="logo-icon">📚</span><span class="ole-brand-badge-text"><span class="ole-brand-badge-title">OpenLibrary Explorer</span><span class="ole-brand-badge-subtitle">Browse millions of books your way</span></span></span>
-                    <button id="toggleAllBtn" class="nav-btn" style="display: none;"></button>
-                    <button id="viewSavedBtn" class="nav-btn" title="Toggle My Library">
+                    <button id="toggleAllBtn" class="nav-btn" style="display: none;" aria-label="Toggle all books in library" title="Toggle all books in library"></button>
+                    <button id="viewSavedBtn" class="nav-btn" title="Toggle My Library" aria-label="Toggle My Library">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
@@ -830,6 +813,9 @@
                         </svg>
                         <span class="btn-label">My Library</span> <span id="savedCount" class="saved-badge">0</span>
                     </button>
+                </div>
+                <div id="libraryTranslateProgress" class="library-translate-progress" style="display: none;">
+                    <div id="libraryTranslateProgressBar" class="progress-bar-fill"></div>
                 </div>
             </div>
             <div id="statusMessage" aria-live="polite" style="display: none;"></div>
@@ -846,7 +832,7 @@
         <div class="details-drawer-backdrop" id="detailsBackdrop"></div>
         <div class="details-drawer-container">
             <div class="details-drawer-header">
-                <button id="detailsCloseBtn" class="drawer-close-btn" title="Close Details">&times;</button>
+                <button id="detailsCloseBtn" class="drawer-close-btn" title="Close Details" aria-label="Close Details">&times;</button>
                 <div class="details-header-content">
                     <div id="detailsCoverContainer" class="details-cover-container"></div>
                     <div class="details-title-container">
@@ -878,8 +864,301 @@
             </div>
         </div>
     </div>
-    <script src="localforage.min.js"></script>
-    <script src="script.js"></script>
+    <!-- Floating Draggable Telemetry HUD Modal -->
+    <div id="telemetryFloatingModal" class="telemetry-floating-modal" style="display: none;">
+        <div class="telemetry-floating-header" id="telemetryHeaderDraggable">
+            <div class="telemetry-header-left">
+                <span class="telemetry-floating-title">Telemetry & Scheduler</span>
+                <span id="telemetryTransportBadge" class="telemetry-badge">Direct Mode</span>
+            </div>
+            <div class="telemetry-header-right">
+                <button id="telemetryPinBtn" class="telemetry-pin-btn" type="button" aria-label="Pin Telemetry HUD across reloads" aria-pressed="false" title="Pin HUD: Keep open across page reloads">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="17" x2="12" y2="22"></line>
+                        <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
+                    </svg>
+                </button>
+                <button id="telemetryCloseBtn" class="telemetry-close-btn" type="button" aria-label="Close Telemetry">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <!-- Telemetry Segmented Tabs -->
+        <div class="telemetry-tabs" id="telemetryTabs" role="tablist" aria-label="Telemetry HUD navigation">
+            <button type="button" class="telemetry-tab active" id="telemetryTabMetricsBtn" data-pane="telemetryPaneMetrics" role="tab" aria-selected="true" aria-controls="telemetryPaneMetrics" tabindex="0">Telemetry</button>
+            <button type="button" class="telemetry-tab" id="telemetryTabSchedulerBtn" data-pane="telemetryPaneScheduler" role="tab" aria-selected="false" aria-controls="telemetryPaneScheduler" tabindex="-1">Scheduler</button>
+        </div>
+        <div class="telemetry-floating-body">
+            <!-- Tab Pane 1: Live Telemetry Metrics -->
+            <div id="telemetryPaneMetrics" class="telemetry-pane active" role="tabpanel" aria-labelledby="telemetryTabMetricsBtn">
+                <div id="apiTelemetryCard" class="telemetry-card">
+                    <!-- Section 1: Network & Pipeline -->
+                    <div class="telemetry-section">
+                        <div class="telemetry-section-title">Network & Pipeline</div>
+                        <div class="telemetry-subgrid">
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">Throughput (1s / 5s)</span>
+                                <span id="telStartRate" class="telemetry-value">0.0 / 0.0 req/s</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">Peak Observed Rate</span>
+                                <span id="telPeakRate" class="telemetry-value">0 req/s</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">Queue Latency (Avg / Hi)</span>
+                                <span id="telQueueWait" class="telemetry-value">0 ms / 0 ms</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">Network RTT (Active / Queued)</span>
+                                <span id="telRtt" class="telemetry-value">0 ms (0 / 0)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Search & Discovery Engine -->
+                    <div class="telemetry-section">
+                        <div class="telemetry-section-title">Search & Discovery Engine</div>
+                        <div class="telemetry-subgrid">
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">Catalog Searches</span>
+                                <span id="telSearchQueries" class="telemetry-value">0 reqs</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">Books Retrieved</span>
+                                <span id="telSearchDocs" class="telemetry-value">0 docs</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">Autocomplete / Facets</span>
+                                <span id="telAutocomplete" class="telemetry-value">0 lookups</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">Discovery & Details</span>
+                                <span id="telDiscoveryDetails" class="telemetry-value">0 reqs</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Speed & Benchmark Logs -->
+                    <div class="telemetry-section">
+                        <div class="telemetry-section-title">Speed & Benchmark Logs</div>
+                        <div class="telemetry-subgrid">
+                            <div class="telemetry-item" style="grid-column: 1 / -1;">
+                                <span class="telemetry-label">Last Search Time (Total / Query / Transl / Render)</span>
+                                <span id="telLastSearchTime" class="telemetry-value">—</span>
+                            </div>
+                            <div class="telemetry-item" style="grid-column: 1 / -1;">
+                                <span class="telemetry-label">Search Duration (Min / Avg / Max)</span>
+                                <span id="telSearchTimingSummary" class="telemetry-value">— / — / —</span>
+                            </div>
+                            <div class="telemetry-item" style="grid-column: 1 / -1;">
+                                <span class="telemetry-label">Avg Layer Latency (RAM / Edge / Origin)</span>
+                                <span id="telLayerLatencies" class="telemetry-value">0 ms / 0 ms / 0 ms</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Translation Pipeline -->
+                    <div class="telemetry-section">
+                        <div class="telemetry-section-title">Translation Pipeline</div>
+                        <div class="telemetry-subgrid">
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">Works Processed</span>
+                                <span id="telTranslatedWorks" class="telemetry-value">0 books</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">Edition Scan Ratio (P1 / P2)</span>
+                                <span id="telPassRatio" class="telemetry-value">100% (0) / 0% (0)</span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">Reqs / Book Cost</span>
+                                <span id="telReqsPerBook" class="telemetry-value">1.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 5: Cache Shield & Health -->
+                    <div class="telemetry-section" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                        <div class="telemetry-section-title">Cache Shield & Health</div>
+                        <div class="telemetry-subgrid">
+                            <div class="telemetry-item" style="grid-column: 1 / -1;">
+                                <span class="telemetry-label">Server Dispatches (OL Origin / CF Edge)</span>
+                                <span id="telStatus" class="telemetry-value">0 / 0</span>
+                            </div>
+                            <div class="telemetry-item" style="grid-column: 1 / -1;">
+                                <span class="telemetry-label">Storage Tier Hits (RAM / IDB / Edge)</span>
+                                <span id="telCacheHits" class="telemetry-value">0 / 0 / 0</span>
+                            </div>
+                            <div class="telemetry-item" style="grid-column: 1 / -1;">
+                                <span class="telemetry-label">Content Hits (API / Titles / Covers)</span>
+                                <span id="telContentHits" class="telemetry-value">0 / 0 / 0</span>
+                            </div>
+                            <div class="telemetry-item" style="grid-column: 1 / -1;">
+                                <span class="telemetry-label">HTTP Status (429 Rate / 403 Block / 404 Miss / Errors)</span>
+                                <span id="telErrors" class="telemetry-value" style="cursor: help;" title="No errors logged">0 / 0 / 0 / 0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="telemetry-actions">
+                        <button id="exportTelemetryBtn" type="button">Export Telemetry</button>
+                        <button id="resetTelemetryBtn" type="button">Reset Metrics</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Pane 2: Adaptive Rate Scheduler Controls -->
+            <div id="telemetryPaneScheduler" class="telemetry-pane" style="display: none;" role="tabpanel" aria-labelledby="telemetryTabSchedulerBtn">
+                <div class="debug-controls-card">
+                    <div class="telemetry-header">
+                        <span class="telemetry-title">Adaptive Rate Scheduler</span>
+                        <label class="scheduler-mode-toggle" title="Toggle between Optimized Dynamic Pacing and Manual Fixed Controls">
+                            <input type="checkbox" id="schedulerModeToggle" style="display: none;" checked>
+                            <span class="scheduler-mode-label" id="schedulerModeLabel">Optimized</span>
+                        </label>
+                    </div>
+
+                    <div class="scheduler-row" id="schedulerDelayRow">
+                        <div class="scheduler-row-header">
+                            <span class="scheduler-row-label">Start Spacing</span>
+                            <span class="scheduler-pill" id="debugDelayVal" title="Optimized Pacing: 0ms delay on Cloudflare Edge cache hits (instant line rate); strictly paces subsequent origin dispatches by 334ms whenever an Edge cache miss occurs to respect Open Library's 3.0 req/s rate limit.">Auto</span>
+                        </div>
+                        <input type="range" id="debugDelaySlider" class="scheduler-slider" min="25" max="1500" step="25" value="250">
+                    </div>
+
+                    <div class="scheduler-row" id="schedulerMaxConnRow">
+                        <div class="scheduler-row-header">
+                            <span class="scheduler-row-label">Max Concurrency</span>
+                            <span class="scheduler-pill" id="debugMaxConnVal" title="Optimized Concurrency: Multiplexes up to 8 simultaneous connections to the Cloudflare Edge, with an internal safety latch restricting unconfirmed requests to ≤3 until response headers verify an Edge hit vs Origin miss.">Auto</span>
+                        </div>
+                        <input type="range" id="debugMaxConnSlider" class="scheduler-slider" min="1" max="8" step="1" value="3">
+                    </div>
+
+                    <div class="scheduler-row" id="schedulerBurstRow">
+                        <div class="scheduler-row-header">
+                            <span class="scheduler-row-label">Burst Token Capacity</span>
+                            <span class="scheduler-pill" id="debugBurstVal" title="Optimized Burst: Edge requests bypass the token bucket and dispatch instantly without queue wait times as long as a connection slot is available.">Auto</span>
+                        </div>
+                        <input type="range" id="debugBurstSlider" class="scheduler-slider" min="0" max="8" step="1" value="3">
+                    </div>
+
+                    <div class="scheduler-proxy-section">
+                        <div class="scheduler-row-header">
+                            <span class="scheduler-row-label">Cloudflare Edge Proxy URL</span>
+                        </div>
+                        <div class="scheduler-input-wrapper">
+                            <input type="text" id="debugProxyInput" class="scheduler-input" placeholder="https://your-worker.workers.dev" spellcheck="false" autocomplete="off">
+                        </div>
+                        <span class="scheduler-caption">Routes requests through Cloudflare Edge cache for maximum throughput.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Persistent Bottom Action Footer (Visible under both tabs) -->
+        <div class="telemetry-floating-footer">
+            <button id="resetSchedulerBtn" type="button" class="settings-reset-btn">Reset Defaults</button>
+            <button id="clearLibraryCacheBtn" type="button" class="settings-reset-btn settings-danger-btn" title="Purges all cached translation titles and covers without touching your saved library books.">Clear Cache</button>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcutsModal" class="shortcuts-modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="shortcutsModalTitle">
+        <div class="shortcuts-modal-backdrop" id="shortcutsModalBackdrop"></div>
+        <div class="shortcuts-modal-container">
+            <div class="shortcuts-modal-header">
+                <div class="shortcuts-modal-title-group">
+                    <span class="shortcuts-modal-icon">⌨️</span>
+                    <h2 id="shortcutsModalTitle" class="shortcuts-modal-title">Keyboard Shortcuts</h2>
+                </div>
+                <button id="shortcutsModalCloseBtn" class="shortcuts-modal-close-btn" aria-label="Close Shortcuts">&times;</button>
+            </div>
+            <div class="shortcuts-modal-body">
+                <div class="shortcuts-section">
+                    <h3 class="shortcuts-section-title">Navigation & View</h3>
+                    <div class="shortcuts-grid">
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>T</kbd></div>
+                            <div class="shortcut-desc">Toggle Sidebar <span class="shortcut-subtext">(dismisses open popups first)</span></div>
+                        </div>
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>L</kbd></div>
+                            <div class="shortcut-desc">Toggle My Library <span class="shortcut-subtext">(switch between search & saved)</span></div>
+                        </div>
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>V</kbd></div>
+                            <div class="shortcut-desc">Toggle Grid / List View</div>
+                        </div>
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>Esc</kbd></div>
+                            <div class="shortcut-desc">Close Active Overlay <span class="shortcut-subtext">(modals, drawer, popouts)</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="shortcuts-section">
+                    <h3 class="shortcuts-section-title">Rail Quick-Actions (Collapsed Sidebar)</h3>
+                    <div class="shortcuts-grid">
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>F</kbd></div>
+                            <div class="shortcut-desc">Toggle Filter Popout <span class="shortcut-subtext">(when rail is visible)</span></div>
+                        </div>
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>S</kbd></div>
+                            <div class="shortcut-desc">Toggle Sort Popout <span class="shortcut-subtext">(when rail is visible)</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="shortcuts-section">
+                    <h3 class="shortcuts-section-title">Search & Subject Tags</h3>
+                    <div class="shortcuts-grid">
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>Enter</kbd></div>
+                            <div class="shortcut-desc">Add tag (typing) / Run search & collapse sidebar (empty)</div>
+                        </div>
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>Tab</kbd></div>
+                            <div class="shortcut-desc">Autocomplete top suggested tag</div>
+                        </div>
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>,</kbd></div>
+                            <div class="shortcut-desc">Add tag on comma separator</div>
+                        </div>
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>Backspace</kbd></div>
+                            <div class="shortcut-desc">Delete text character <span class="shortcut-subtext">(leaves finished bubbles untouched)</span></div>
+                        </div>
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>Delete</kbd></div>
+                            <div class="shortcut-desc">Remove last tag bubble <span class="shortcut-subtext">(when input field is empty)</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="shortcuts-section">
+                    <h3 class="shortcuts-section-title">Book Cards & Interaction</h3>
+                    <div class="shortcuts-grid">
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>Click Card</kbd></div>
+                            <div class="shortcut-desc">Open Book Details Drawer</div>
+                        </div>
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>Shift</kbd> + <kbd>Click</kbd></div>
+                            <div class="shortcut-desc">Toggle Include Filter <span class="shortcut-subtext">(on a subject tag)</span></div>
+                        </div>
+                        <div class="shortcut-item">
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>Click</kbd></div>
+                            <div class="shortcut-desc">Toggle Exclude Filter <span class="shortcut-subtext">(on a subject tag)</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="main.js"></script>
 </body>
 
 </html>

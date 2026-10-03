@@ -367,23 +367,38 @@ body.legacy-layout .results-header {
 
 @media (min-width: 769px) {
     body:not(.legacy-layout) .results-header.desktop-sticky-active {
-        position: sticky;
+        position: sticky !important;
         top: 0;
-        z-index: 100;
-        background: var(--selection-bar-bg, rgba(255, 255, 255, 0.78));
-        backdrop-filter: blur(10px) saturate(1.4);
-        -webkit-backdrop-filter: blur(10px) saturate(1.4);
+        z-index: 100 !important;
+        height: 62px !important;
+        min-height: 62px !important;
+        box-sizing: border-box !important;
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(14px) saturate(180%);
+        -webkit-backdrop-filter: blur(14px) saturate(180%);
         border-bottom: 1px solid var(--border);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, calc(0.12 * var(--desktop-sticky-progress, 0)));
+        box-shadow: 0 4px 20px rgba(0, 0, 0, calc(0.08 * var(--desktop-sticky-progress, 0)));
         transform: translateY(calc((var(--desktop-sticky-progress, 0) - 1) * 100%));
         opacity: var(--desktop-sticky-progress, 0);
         pointer-events: none;
+        transition: background-color 0.2s ease;
+    }
+
+    [data-theme="dark"] body:not(.legacy-layout) .results-header.desktop-sticky-active {
+        background: rgba(22, 27, 34, 0.75);
+        box-shadow: 0 6px 24px rgba(0, 0, 0, calc(0.35 * var(--desktop-sticky-progress, 0)));
     }
 
     body:not(.legacy-layout) .results-header.desktop-sticky-active.desktop-sticky-extending {
         pointer-events: auto;
-        opacity: calc(0.2 + 0.8 * var(--desktop-sticky-progress, 0));
-        transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.28s ease;
+    }
+
+    /* When Smooth Scrolling is OFF: the JS rAF follower in handleScrollState
+       owns interpolation (it runs in every mode), so no CSS transform/opacity
+       transition here — a per-frame JS write plus a 0.16s CSS transition would
+       fight and stutter. background-color still transitions on state toggles. */
+    body:not(.smooth-scroll-on):not(.legacy-layout) .results-header.desktop-sticky-active {
+        transition: background-color 0.2s ease;
     }
 
     body.reduce-animations:not(.legacy-layout) .results-header {
@@ -397,6 +412,17 @@ body.legacy-layout .results-header {
         -webkit-backdrop-filter: none !important;
         background: var(--results-header-bg) !important;
         pointer-events: auto !important;
+    }
+
+    /* While scrolling, drop the 14px backdrop blur: re-blurring 300 scrolling
+       cards behind the header every frame is one of the heaviest compositor
+       costs on the page. The translucent background stays, so the header
+       keeps its tint; the blur eases back in at rest (is-scrolling clears
+       80ms after the last scroll event). Covers engine glides and native
+       scrolls alike — is-scrolling is present for both. */
+    body:not(.legacy-layout) main.results.is-scrolling .results-header.desktop-sticky-active {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
     }
 }
 
@@ -573,36 +599,7 @@ body.overlay-sidebar-transitioning .mobile-sidebar-branding {
         box-shadow: 0 0 45px rgba(0, 0, 0, 0.28);
     }
 
-    /* Left-side sidebar open: slide the Discover tabs just right of the
-   floating panels edge - their tail used to peek out from underneath it.
-   Animates in sync with the panels own slide. */
-    body.overlayed-sidebar:not(.sidebar-right) #discoverDashboardToggles {
-        margin-left: 0;
-        transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
 
-    body.overlayed-sidebar:not(.sidebar-right).legacy-layout .app-container:not(.sidebar-collapsed) #discoverDashboardToggles {
-        margin-left: 283px;
-    }
-
-    body.overlayed-sidebar:not(.sidebar-right):not(.legacy-layout) .app-container:not(.sidebar-collapsed) #discoverDashboardToggles {
-        margin-left: 340px;
-    }
-
-    /* Right-side sidebar open: mirror - the right header group slides LEFT of
-   the panels edge instead of hiding underneath it. */
-    body.overlayed-sidebar.sidebar-right .results-header-right {
-        margin-right: 0;
-        transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    body.overlayed-sidebar.sidebar-right:not(.legacy-layout) .app-container:not(.sidebar-collapsed) .results-header-right {
-        margin-right: var(--ole-rhdr-gap, 340px);
-    }
-
-    body.overlayed-sidebar.sidebar-right.legacy-layout .app-container:not(.sidebar-collapsed) .results-header-right {
-        margin-right: var(--ole-rhdr-gap, 283px);
-    }
 
 
 
@@ -635,11 +632,21 @@ body.overlay-sidebar-transitioning .mobile-sidebar-branding {
         -webkit-backdrop-filter: blur(4px);
     }
 
-    /* The results header stacks ABOVE the backdrop so it stays crisp and
-       fully interactive while everything else behind the blur dims. The
-       TOP site header gets the same treatment when Compact Mode is OFF
-       (it doesn't exist visually under Compact Mode). */
-    body.overlayed-sidebar .results-header {
+    /* The search section stacks ABOVE the backdrop so it stays crisp and
+       fully interactive while everything else in the content header dims
+       behind the blur and closes the sidebar on click. The TOP site header
+       gets the same treatment when Compact Mode is OFF. Applied only while
+       the overlay sidebar is open so the desktop-sticky results header
+       retains its sticky stacking context while browsing. */
+    body.overlayed-sidebar .app-container:not(.sidebar-collapsed) .results-header {
+        position: relative;
+        z-index: auto !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        transform: none !important;
+    }
+
+    body.overlayed-sidebar .header-search-container {
         position: relative;
         z-index: 501;
     }
@@ -649,6 +656,14 @@ body.overlay-sidebar-transitioning .mobile-sidebar-branding {
         z-index: 501;
     }
 
+    /* Prevent main content from scrolling while overlay sidebar is open */
+    body.overlayed-sidebar main.results {
+        scrollbar-gutter: stable;
+    }
+    body.overlayed-sidebar .app-container:not(.sidebar-collapsed) main.results {
+        overflow-y: hidden !important;
+    }
+
     /* While the overlay is open it covers the outer toggle's home in the
        results header — hide that one and surface the delegate inside the
        sidebar header instead. Purely visual: the delegate clicks
@@ -656,7 +671,10 @@ body.overlay-sidebar-transitioning .mobile-sidebar-branding {
        Legacy-switch-ON only: in default mode the REAL toggle already sits
        inside the sidebar header, so the delegate would duplicate it. */
     body.overlayed-sidebar:not(.legacy-layout) .app-container:not(.sidebar-collapsed) .results-header #sidebarToggleBtn {
-        display: none !important;
+        opacity: 0.35 !important;
+        pointer-events: none !important;
+        cursor: default !important;
+        display: inline-flex !important;
     }
 
     #sidebarOverlayCloseBtn {
@@ -977,6 +995,13 @@ body.legacy-layout.sidebar-collapsed:not(.legacy-sidebar-transitioning):not(.ove
     color: white;
     border-color: #f43f5e;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.nav-btn.active:hover,
+[data-theme="dark"] .nav-btn.active:hover {
+    background: #e11d48 !important;
+    border-color: #e11d48 !important;
+    color: #ffffff !important;
 }
 
 .saved-badge {
@@ -1837,6 +1862,37 @@ main.results {
     flex-shrink: 0;
 }
 
+/* Complete Translation Progress Indicator */
+.library-translate-progress {
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+[data-theme="dark"] .library-translate-progress {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.library-translate-progress.is-active {
+    opacity: 1;
+}
+
+.library-translate-progress .progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    transition: width 0.2s ease-out;
+}
+
 .results-header-left {
     display: flex;
     align-items: center;
@@ -2056,13 +2112,14 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
 .stage-toasts {
     position: absolute;
     left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
+    top: calc(100% + 8px);
+    transform: translateX(-50%);
     display: flex;
     flex-direction: row;
     gap: 0.5rem;
-    z-index: 5;
+    z-index: 600;
     pointer-events: none;
+    max-width: 90vw;
 }
 
 .stage-toast {
@@ -2072,14 +2129,20 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     border-radius: 20px;
     background: var(--card-bg);
     border: 1px solid var(--border);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
     opacity: 0;
     transform: scale(0.9);
     animation: toastIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, toastOut 0.3s ease forwards 1.8s;
-    max-width: 250px;
+    max-width: min(320px, 85vw);
+}
+
+[data-theme="dark"] .stage-toast {
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
 }
 
 .stage-toast .dot {
@@ -2094,6 +2157,14 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--text);
+}
+
+@media (max-width: 600px) {
+    .stage-toasts {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+    }
 }
 
 @keyframes toastIn {
@@ -2138,25 +2209,48 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
     position: relative;
-    animation: cardFadeIn 0.25s ease both;
-    animation-delay: calc(min(var(--card-index, 0), 8) * 0.005s);
+    animation: cardFadeIn 0.28s ease backwards;
+    animation-delay: calc(min(var(--card-index, 0), 8) * 0.007s);
+    /* NOTE: content-visibility:auto was tried here and reverted: its
+       skip/render cycling re-ran layout+paint+layer assignment on every
+       scroll pass (worse than the compositing it saved for sub-1000-card
+       grids). Cards always render; scrolling stays pure compositing. */
 }
 
+/* Entrance is opacity-only by design: the previous translateY(16px) rise
+   replayed on EVERY mount (refresh, searches, library renders, Discover
+   tab switches) and read as cards "jumping/floating up into their spots",
+   especially on mobile. Fading in place keeps the polish with zero
+   positional motion. Fill is backwards-only (never forwards): a finished
+   filling animation keeps applying forever, which pins a permanent
+   compositor layer per card — with hundreds of cards that bloats the layer
+   tree and makes every Layerize pass crawl. Backwards still hides cards
+   through the stagger delay, then releases everything. */
 @keyframes cardFadeIn {
     from {
         opacity: 0;
-        transform: translateY(16px);
     }
 
     to {
         opacity: 1;
-        transform: translateY(0);
     }
 }
 
-.skeleton-card {
+body.reduce-animations .book-card {
     animation: none !important;
 }
+
+/* Same for OS-level reduced motion (covers already honor it below; the
+   reduced-motion boot toast promises it for cards too). */
+@media (prefers-reduced-motion: reduce) {
+    .book-card {
+        animation: none !important;
+    }
+}
+
+/* (Scroll-reveal entrances were removed: below-fold arrivals now simply
+   appear (they were off-screen), which proved smoother and less visually
+   noisy than animating them — the mount fade carries first paint.) */
 
 @media (hover: hover) {
     .book-card:hover {
@@ -2199,6 +2293,48 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
     position: relative;
 }
 
+/* Late-cover fade: covers assigned a src AFTER their card is already on
+   screen (ordered background loader, missing-cover resolution, translation
+   swaps) fade in on paint instead of snapping. Opacity-only — compositor
+   work, no layout. Covers present at build (RAM hits) ride the card's own
+   mount fade and are deliberately left alone; instant cached covers resolve
+   inside that same fade, so the extra fade melts into the entrance instead
+   of doubling it. */
+.book-cover.cover-fresh {
+    animation: coverIn 0.4s ease backwards;
+}
+
+@keyframes coverIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+body.reduce-animations .book-cover.cover-fresh {
+    animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .book-cover.cover-fresh {
+        animation: none !important;
+    }
+}
+
+/* ?plaincards=1 diagnostic: shadow-free cards to isolate raster cost from
+   everything else (brute-force !important is fine for a test flag). */
+body.plain-cards .book-card,
+body.plain-cards .book-card:hover,
+body.plain-cards .book-cover,
+body.plain-cards .book-grid:not(.list-view) .book-card:hover .book-cover,
+[data-theme="dark"] body.plain-cards .book-card:hover,
+[data-theme="dark"] body.plain-cards .book-grid:not(.list-view) .book-card:hover .book-cover {
+    box-shadow: none !important;
+}
+
 /* 2D cover hover — grid view only */
 .book-grid:not(.list-view) .book-card:hover .book-cover {
     transform: scale(1.04);
@@ -2218,15 +2354,67 @@ main.results:has(#discoverDashboard[style*="display: none"]) #discoverDashboardT
 body.is-scrolling .book-card,
 main.results.is-scrolling .book-card {
     pointer-events: none !important;
-    transform: none !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
     border-color: var(--border) !important;
+    /* Kill the 0.2s box-shadow/transform transitions on the way IN: without
+       this, toggling the class starts hundreds of simultaneous paint-heavy
+       transitions mid-scroll. (On toggle-off one rest-time wave still plays;
+       frames are free then, so it's harmless polish.) */
+    transition: none !important;
+}
+
+/* Flatten transforms mid-scroll: kills hover lifts chasing the pointer while
+   tiles slide. */
+body.is-scrolling .book-card,
+main.results.is-scrolling .book-card {
+    transform: none !important;
 }
 
 body.is-scrolling .book-card .book-cover,
 main.results.is-scrolling .book-card .book-cover {
     transform: none !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+    transition: none !important;
+}
+
+/* ── Desktop Smooth Scrolling Active Cursor & Motion Lock ─────────── */
+body.smooth-scrolling-active main.results,
+body.smooth-scrolling-active main.results .book-card,
+body.smooth-scrolling-active main.results .book-card * {
+    pointer-events: none !important;
+    cursor: default !important;
+}
+
+body.smooth-scrolling-active .book-card {
+    pointer-events: none !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+    border-color: var(--border) !important;
+    transition: none !important;
+}
+
+/* Same flattening for engine-driven glides. */
+body.smooth-scrolling-active .book-card {
+    transform: none !important;
+}
+
+body.smooth-scrolling-active .book-card .book-cover {
+    transform: none !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+    transition: none !important;
+}
+
+/* Floating panels and overlays must retain pointer interactivity during scroll gestures */
+.settings-dropdown,
+.settings-dropdown *,
+.rail-popover,
+.rail-popover *,
+.shortcuts-modal-container,
+.shortcuts-modal-container *,
+.telemetry-floating-modal,
+.telemetry-floating-modal *,
+.details-drawer-container,
+.details-drawer-container * {
+    pointer-events: auto !important;
 }
 
 .no-cover {
@@ -2565,7 +2753,6 @@ body.sidebar-tag-transitioning .tags-list.grid-tags {
        track sizing below, clip it here instead of letting it spill off
        the card / off the screen. */
     overflow: hidden;
-    contain-intrinsic-size: auto 75px;
 }
 
 @media (hover: hover) {
@@ -3238,7 +3425,7 @@ button#loadMoreBtn:disabled {
     border: 1px solid var(--border);
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-    padding: 1.5rem;
+    padding: 1.25rem 1.25rem 0.85rem 1.25rem;
     width: 330px;
     box-sizing: border-box;
     max-height: min(580px, calc(100vh - 100px));
@@ -3659,6 +3846,10 @@ button#loadMoreBtn:disabled {
     line-height: 1;
 }
 
+#viewShortcutsBtn {
+    width: 50px;
+}
+
 .settings-action-btn:hover {
     background-color: var(--sidebar-bg);
     border-color: var(--btn-bg);
@@ -3721,6 +3912,63 @@ button#loadMoreBtn:disabled {
     background-color: #32353c;
     border-color: var(--accent);
     color: var(--accent);
+}
+
+.settings-danger-btn {
+    border-color: rgba(239, 68, 68, 0.4) !important;
+    color: #ef4444 !important;
+}
+
+.settings-danger-btn:hover {
+    background-color: rgba(239, 68, 68, 0.08) !important;
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+}
+
+[data-theme="dark"] .settings-danger-btn {
+    border-color: rgba(239, 68, 68, 0.4) !important;
+    color: #f87171 !important;
+}
+
+[data-theme="dark"] .settings-danger-btn:hover {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+    border-color: #f87171 !important;
+    color: #f87171 !important;
+}
+
+.settings-danger-btn.is-reloading,
+[data-theme="dark"] .settings-danger-btn.is-reloading {
+    border-color: #10b981 !important;
+    color: #10b981 !important;
+    background-color: rgba(16, 185, 129, 0.12) !important;
+    opacity: 1 !important;
+    cursor: default;
+}
+
+.settings-version-banner {
+    text-align: center;
+    margin: 0.5rem auto 0 auto;
+    padding: 3px 8px;
+    max-width: fit-content;
+    font-size: 0.65rem;
+    font-family: ui-monospace, SFMono-Regular, "Cascadia Code", "Segoe UI Mono", Menlo, monospace;
+    font-weight: 500;
+    color: var(--text-muted, #8b949e);
+    opacity: 0.35;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: pointer;
+    transition: opacity 0.2s ease, color 0.2s ease;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    touch-action: manipulation;
+}
+.settings-version-banner:hover {
+    opacity: 0.85;
+    color: var(--accent, #58a6ff);
+}
+.settings-version-banner:active {
+    opacity: 0.5;
 }
 
 /* Sidebar Position control (Preferences → General): identical mechanics to
@@ -4675,6 +4923,18 @@ input:checked+.slider.url-slider .icon.list-icon {
         display: flex !important;
     }
 
+    /* 3c. Hide Misc and Info categories (desktop only) on mobile */
+    #categoryMisc,
+    #categoryInfo,
+    .desktop-only-category {
+        display: none !important;
+    }
+
+    /* 3d. Hide desktop-only rows (e.g. Smooth Scrolling) on mobile */
+    .desktop-only-row {
+        display: none !important;
+    }
+
     /* Mobile sidebar branding footer — shown at the bottom of the sidebar
        once it's open, in both mobile layouts (default rail and legacy).
        margin-top:auto pins it to the bottom of the sidebar's flex column
@@ -4728,10 +4988,14 @@ input:checked+.slider.url-slider .icon.list-icon {
     }
 
     /* In Mobile Legacy Layout the branding footer is a direct child of the
-       aside, so it misses the 18px side margins the .sidebar-group content
-       gets. Giving it the same margins (and dropping its own horizontal
-       padding) makes the banner span exactly the Filter/Sort content width. */
+        aside, so it misses the 18px side margins the .sidebar-group content
+        gets. Giving it the same margins (and dropping its own horizontal
+        padding) makes the banner span exactly the Filter/Sort content width.
+        width:auto (not the base rule's 100%) is load-bearing here: 100% plus
+        side margins overflows the panel by 36px, shoving the centered
+        content 18px right. */
     body.mobile-legacy-layout .app-container:not(.sidebar-collapsed) .mobile-sidebar-branding {
+        width: auto !important;
         margin-left: 18px !important;
         margin-right: 18px !important;
         padding-left: 0 !important;
@@ -4816,15 +5080,13 @@ input:checked+.slider.url-slider .icon.list-icon {
         box-shadow: 8px 0 32px rgba(0, 0, 0, 0.28) !important;
     }
 
-    /* Mid-drag: the gesture code (see script.js) drives the slide through
-       the --drag-transform custom property on this rule instead of an inline
-       transform — the collapsed/expanded state rules above mark their
-       transforms !important, and !important stylesheet rules beat inline
-       styles, so a plain inline transform would have been ignored. Same
-       specificity as the expanded rule above, but later in the file, so it
-       wins while the sidebar is actually being dragged. */
+    /* Mid-drag: the gesture code (see app-ui.js) drives the slide through a
+        direct inline transform with !important priority — the
+        collapsed/expanded state rules above mark their transforms
+        !important, and !important stylesheet rules beat plain inline
+        styles. Same specificity as the expanded rule above, but later in
+        the file, so it wins while the sidebar is actually being dragged. */
     body.mobile-legacy-layout .app-container aside.filters.dragging {
-        transform: var(--drag-transform, translateX(-100%)) !important;
         transition: none !important;
         /* Pre-promote the compositor layer only for the duration of the drag. */
         will-change: transform;
@@ -4838,13 +5100,13 @@ input:checked+.slider.url-slider .icon.list-icon {
     }
 
     /* The backdrop dims the main content behind the sidebar and carries a
-       backdrop-filter blur. Its opacity is written every drag frame, and
-       re-filtering what's behind it each frame is a real per-frame cost on
-       phones (one of the slow-drag choppiness sources). While a drag is in
-       flight the dim alone tracks the finger — the blur only matters on the
-       settled open state, so it's suppressed mid-gesture and eased back in
-       on release via the backdrop's transition below. */
-    body.mobile-legacy-layout .app-container aside.filters.dragging.drag-pulling~.mobile-sidebar-backdrop {
+        backdrop-filter blur. Its opacity is written every drag frame, and
+        re-filtering what's behind it each frame is a real per-frame cost on
+        phones (one of the slow-drag choppiness sources). While any drag is
+        in flight the dim alone tracks the finger — the blur only matters on
+        the settled open state, so it's suppressed mid-gesture and restored
+        on release. */
+    body.mobile-legacy-layout .app-container aside.filters.dragging~.mobile-sidebar-backdrop {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
     }
@@ -4857,13 +5119,6 @@ input:checked+.slider.url-slider .icon.list-icon {
     body.mobile-legacy-layout .app-container aside.filters.dragging~#mobileSidebarSwipeHint {
         animation: none !important;
         transition: none !important;
-        /* While a drag is in flight the sidebar isn't open or collapsed —
-           neither state rule applies cleanly, and the collapsed rule's
-           translateX(0) would pin the ear to the left edge while the sidebar
-           tracks the finger. The gesture code updates --ear-open-offset
-           (asideWidth × progress) every frame, so this rule makes the ear
-           ride along 1:1 with the aside instead of lagging behind it. */
-        transform: translateY(-50%) translateX(var(--ear-open-offset, 0px)) !important;
     }
 
     /* No thin rail in this mode, ever — the sidebar is either fully hidden or
@@ -4892,28 +5147,32 @@ input:checked+.slider.url-slider .icon.list-icon {
     }
 
     /* Sidebar content fade (Alternative mobile layout):
-       The panel slides in/out via transform on its own compositor layer; its
-       inner content is hidden during that slide (mid-drag and the post-release
-       or ear-tap open/close transition) and fades in quickly once the panel
-       has fully extended -- fixes the buggy half-rendered look mid-pullout.
-       Scoped to body.mobile-legacy-layout so desktop and the default mobile
-       rail layout are untouched. */
+        The panel slides in/out via transform on its own compositor layer; its
+        inner content is hidden during an OPENING slide (mid-drag and the
+        post-release transition) and fades in quickly once the panel has fully
+        extended -- fixes the buggy half-rendered look mid-pullout. A panel
+        that starts open keeps its content visible throughout, so nudges that
+        go nowhere never flash. Scoped to body.mobile-legacy-layout so desktop
+        and the default mobile rail layout are untouched. */
     body.mobile-legacy-layout .app-container.sidebar-collapsed aside.filters>* {
         opacity: 0 !important;
         pointer-events: none !important;
         transition: opacity 0.1s ease !important;
+        content-visibility: hidden;
     }
 
     body.mobile-legacy-layout .app-container:not(.sidebar-collapsed) aside.filters>* {
         opacity: 1;
         transition: opacity 0.16s ease;
+        content-visibility: visible;
     }
 
-    body.mobile-legacy-layout .app-container:not(.sidebar-collapsed) aside.filters.dragging.drag-pulling>*,
-    body.mobile-legacy-layout.mobile-legacy-sidebar-revealing .app-container:not(.sidebar-collapsed) aside.filters>* {
+    body.mobile-legacy-layout aside.filters.dragging.drag-pulling>*,
+    body.mobile-legacy-layout.mobile-legacy-sidebar-revealing .app-container aside.filters>* {
         opacity: 0 !important;
         pointer-events: none !important;
         transition: opacity 0.08s ease !important;
+        content-visibility: hidden;
     }
 
     /* Hide brand (logo icon block) & sidebar header in Mobile Alternative mode */
@@ -5016,12 +5275,12 @@ input:checked+.slider.url-slider .icon.list-icon {
     }
 
     /* Backdrop still dims/blurs the content behind the open sidebar, same as
-       the default mobile mode. The backdrop-filter in the transition list
-       lets the blur ease back in on drag release (the mid-drag suppression
-       lives with the .dragging rules above). */
+        the default mobile mode. Only opacity transitions — backdrop-filter
+        stays static so the blur isn't recompiled every frame on release.
+        The mid-drag blur suppression lives with the .dragging rules above. */
     body.mobile-legacy-layout .mobile-sidebar-backdrop {
         z-index: 155;
-        transition: opacity 0.3s ease, backdrop-filter 0.3s ease;
+        transition: opacity 0.3s ease;
     }
 
     /* Swipe-to-open discoverability hint. There's no button left in this
@@ -5067,6 +5326,8 @@ input:checked+.slider.url-slider .icon.list-icon {
         opacity: 0.95 !important;
         z-index: 160;
         cursor: grab;
+        touch-action: none;
+        will-change: transform;
         transition: opacity 0.2s ease, transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
@@ -5964,9 +6225,6 @@ body.sidebar-right .rail-popover.open {
         box-shadow: -8px 0 32px rgba(0, 0, 0, 0.28) !important;
     }
 
-    body.sidebar-right.mobile-legacy-layout .app-container aside.filters.dragging {
-        transform: var(--drag-transform, translateX(100%)) !important;
-    }
 
     /* Main content: no reserved rail width; ear rests almost fully hidden with only
        its 3px blue edge exposed on the right edge, so content pads symmetrically. */
@@ -6011,7 +6269,8 @@ body.sidebar-right .rail-popover.open {
 
     /* Mid-drag: ear rides along on the sidebar's LEFT edge */
     body.sidebar-right.mobile-legacy-layout .app-container aside.filters.dragging~#mobileSidebarSwipeHint {
-        transform: translateY(-50%) translateX(calc(-1 * var(--ear-open-offset, 0px))) !important;
+        animation: none !important;
+        transition: none !important;
     }
 
     /* Open: ear docks at the content boundary (the sidebar's left edge) */
@@ -6306,7 +6565,13 @@ body.sidebar-right .rail-popover.open {
 
     /* Sticky Mode under Compact Header */
     body.compact-header:not(.legacy-layout) .results-header.desktop-sticky-active {
-        background: var(--header-bg) !important;
+        background: rgba(30, 41, 59, 0.78) !important;
+        backdrop-filter: blur(14px) saturate(180%);
+        -webkit-backdrop-filter: blur(14px) saturate(180%);
+    }
+
+    [data-theme="light"] body.compact-header:not(.legacy-layout) .results-header.desktop-sticky-active {
+        background: rgba(255, 255, 255, 0.78) !important;
     }
 
     /* Slogan & branding in Sidebar Footer for Compact Desktop Mode */
@@ -6705,4 +6970,747 @@ img.cover-pending {
     background: var(--card-bg);
     color: transparent;
     font-size: 0;
+}
+
+/* ── Live Telemetry Card & HUD ───────────────────────────────────────── */
+.telemetry-card {
+    background: var(--card-bg, #1a1e24);
+    border: 1px solid var(--border, #2d333b);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.8rem;
+}
+.telemetry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--border, #2d333b);
+}
+.telemetry-title {
+    font-weight: 600;
+    color: var(--accent, #58a6ff);
+}
+.telemetry-badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: rgba(88, 166, 255, 0.12);
+    border: 1px solid rgba(88, 166, 255, 0.28);
+    color: var(--accent, #58a6ff);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+.telemetry-badge.is-direct {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--text-muted, #8b949e);
+}
+.telemetry-section {
+    margin-bottom: 0.65rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border, #2d333b);
+}
+.telemetry-section-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent, #58a6ff);
+    margin-bottom: 0.35rem;
+    opacity: 0.9;
+}
+.telemetry-subgrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.45rem;
+}
+.telemetry-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+.telemetry-item {
+    display: flex;
+    flex-direction: column;
+}
+.telemetry-label {
+    font-size: 0.68rem;
+    color: var(--text, #8b949e);
+    opacity: 0.75;
+    margin-bottom: 2px;
+}
+.telemetry-value {
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, SFMono-Regular, "Cascadia Code", "Segoe UI Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text, #c9d1d9);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.telemetry-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--border, #2d333b);
+}
+.telemetry-actions button {
+    flex: 1;
+    height: 30px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border, #3d414a);
+    background: var(--card-bg, #25272c);
+    color: var(--text, #c9d1d9);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.telemetry-actions button:hover {
+    border-color: var(--accent, #58a6ff);
+    color: var(--accent, #58a6ff);
+    background: var(--sidebar-bg, #2d333b);
+}
+.telemetry-actions button:active {
+    transform: scale(0.98);
+}
+
+/* ── Experimental Rate Controls Card ─────────────────────────────────────── */
+.debug-controls-card {
+    background: var(--sidebar-bg, #22272e);
+    border: 1px solid var(--border, #2d333b);
+    border-radius: 8px;
+    padding: 0.85rem;
+    margin-top: 0.85rem;
+    box-sizing: border-box;
+}
+.debug-controls-card .telemetry-header {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.45rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 22px;
+}
+.debug-controls-card .telemetry-header .telemetry-title {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+    margin: 0;
+}
+.scheduler-mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+    user-select: none;
+    line-height: 1;
+}
+.scheduler-mode-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 20px;
+    line-height: 1;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent, #58a6ff);
+    background: rgba(88, 166, 255, 0.12);
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    padding: 0 8px;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+.scheduler-mode-label:hover {
+    background: rgba(88, 166, 255, 0.22);
+}
+.scheduler-mode-label.is-manual {
+    color: var(--text-muted, #8b949e);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border, #3d414a);
+}
+.scheduler-mode-label.is-manual:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+.scheduler-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+}
+.scheduler-row-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.scheduler-row-label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text, #c9d1d9);
+}
+.scheduler-pill {
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: ui-monospace, SFMono-Regular, "Cascadia Code", "Segoe UI Mono", Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent, #58a6ff);
+    background: rgba(88, 166, 255, 0.1);
+    border: 1px solid rgba(88, 166, 255, 0.25);
+    padding: 1px 7px;
+    border-radius: 12px;
+    cursor: help;
+}
+.scheduler-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border, #3d414a);
+    outline: none;
+    cursor: pointer;
+    margin: 4px 0 2px 0;
+}
+.scheduler-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--accent, #58a6ff);
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+    transition: transform 0.12s ease, background-color 0.12s ease;
+}
+.scheduler-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    background: #79b8ff;
+}
+.scheduler-slider::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--accent, #58a6ff);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+}
+.scheduler-slider:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.scheduler-slider:disabled::-webkit-slider-thumb {
+    cursor: not-allowed;
+    background: var(--text-muted, #8b949e);
+    transform: none;
+}
+.scheduler-slider:disabled::-moz-range-thumb {
+    cursor: not-allowed;
+    background: var(--text-muted, #8b949e);
+}
+.scheduler-proxy-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.4rem;
+    margin-bottom: 0.85rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--border, #2d333b);
+}
+.scheduler-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+.scheduler-input {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 0.8rem;
+    font-family: ui-monospace, SFMono-Regular, "Cascadia Code", "Segoe UI Mono", Menlo, Monaco, Consolas, monospace;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border, #3d414a);
+    background: var(--input-bg, #1c2128);
+    color: var(--text, #c9d1d9);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.scheduler-input:focus {
+    outline: none;
+    border-color: var(--accent, #58a6ff);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+}
+.scheduler-caption {
+    font-size: 0.68rem;
+    color: var(--text, #8b949e);
+    opacity: 0.75;
+    line-height: 1.3;
+}
+.scheduler-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+.scheduler-actions button {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    height: 32px;
+    font-size: 0.78rem;
+    padding: 0 8px;
+    flex: 1;
+}
+
+/* ── Floating Draggable Telemetry HUD ─────────────────────────────────────── */
+.telemetry-floating-modal {
+    position: fixed;
+    top: 50px;
+    right: 20px;
+    width: 380px;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 70px);
+    background: rgba(22, 27, 34, 0.88);
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: fadeInTelemetry 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeInTelemetry {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.telemetry-floating-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(30, 36, 46, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.telemetry-floating-header:active {
+    cursor: grabbing;
+}
+
+.telemetry-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+.telemetry-floating-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text, #c9d1d9);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.01em;
+}
+
+.telemetry-header-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.telemetry-pin-btn,
+.telemetry-close-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted, #8b949e);
+    cursor: pointer;
+    padding: 0;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.telemetry-pin-btn {
+    opacity: 0.6;
+}
+
+.telemetry-pin-btn svg {
+    transition: transform 0.2s ease, fill 0.2s ease;
+}
+
+.telemetry-pin-btn:hover,
+.telemetry-close-btn:hover {
+    color: var(--text, #ffffff);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.1);
+    opacity: 1;
+}
+
+.telemetry-pin-btn.is-pinned,
+.telemetry-pin-btn[aria-pressed="true"] {
+    opacity: 1;
+    color: var(--accent, #58a6ff);
+    background: rgba(88, 166, 255, 0.18);
+    border-color: rgba(88, 166, 255, 0.35);
+}
+
+.telemetry-pin-btn.is-pinned svg,
+.telemetry-pin-btn[aria-pressed="true"] svg {
+    transform: rotate(35deg);
+    fill: currentColor;
+}
+
+#categoryMisc .settings-category-title {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.telemetry-tabs {
+    display: flex;
+    background: rgba(18, 22, 28, 0.75);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 6px 10px;
+    gap: 6px;
+    box-sizing: border-box;
+}
+
+.telemetry-tab {
+    flex: 1;
+    padding: 5px 12px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    text-align: center;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted, #8b949e);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.telemetry-tab:hover {
+    color: var(--text, #c9d1d9);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.telemetry-tab.active {
+    color: var(--accent, #58a6ff);
+    background: rgba(88, 166, 255, 0.14);
+    border-color: rgba(88, 166, 255, 0.3);
+    font-weight: 700;
+}
+
+.telemetry-floating-body {
+    padding: 10px;
+    overflow-y: auto;
+    max-height: calc(100vh - 175px);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    contain: layout paint;
+}
+
+.telemetry-pane {
+    display: none;
+}
+
+.telemetry-pane.active {
+    display: block;
+}
+
+.telemetry-pane .telemetry-card,
+.telemetry-pane .debug-controls-card {
+    margin-bottom: 0;
+}
+
+.telemetry-floating-body::-webkit-scrollbar {
+    width: 5px;
+}
+
+.telemetry-floating-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.telemetry-floating-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+}
+
+.telemetry-floating-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.telemetry-floating-body .telemetry-card,
+.telemetry-floating-body .debug-controls-card {
+    margin-top: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(22, 27, 34, 0.95);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.telemetry-floating-footer {
+    display: flex;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(22, 27, 34, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-sizing: border-box;
+}
+
+.telemetry-floating-footer button {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    height: 30px;
+    font-size: 0.76rem;
+    padding: 0 8px;
+}
+
+@media (max-width: 768px) {
+    .telemetry-floating-modal {
+        top: 10px !important;
+        left: 10px !important;
+        right: 10px !important;
+        bottom: auto !important;
+        width: auto !important;
+        max-width: calc(100vw - 20px) !important;
+        max-height: calc(100vh - 20px) !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .telemetry-floating-modal,
+    .telemetry-floating-header {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+}
+
+/* ── Keyboard Shortcuts Modal ────────────────────────────────────────── */
+.shortcuts-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10002;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.shortcuts-modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.shortcuts-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.48);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.shortcuts-modal-container {
+    position: relative;
+    z-index: 1;
+    background: var(--card-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 92%;
+    max-width: 580px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28);
+    overflow: hidden;
+    transform: scale(0.97);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.shortcuts-modal-overlay.active .shortcuts-modal-container {
+    transform: scale(1);
+}
+
+.shortcuts-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--sidebar-bg);
+}
+
+.shortcuts-modal-title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.shortcuts-modal-icon {
+    font-size: 1.25rem;
+}
+
+.shortcuts-modal-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.shortcuts-modal-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--text);
+    opacity: 0.6;
+    cursor: pointer;
+    padding: 0 4px;
+    border-radius: 4px;
+    transition: opacity 0.15s, background-color 0.15s;
+}
+
+.shortcuts-modal-close-btn:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .shortcuts-modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.shortcuts-modal-body {
+    padding: 1.2rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    max-height: calc(85vh - 70px);
+}
+
+.shortcuts-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.shortcuts-section-title {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    opacity: 0.85;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.shortcuts-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.shortcut-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    padding: 3px 0;
+}
+
+.shortcut-keys {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.shortcuts-modal-container kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border);
+    border-bottom: 2px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.shortcut-desc {
+    color: var(--text);
+    text-align: right;
+    line-height: 1.35;
+}
+
+.shortcut-subtext {
+    display: inline-block;
+    font-size: 0.76rem;
+    opacity: 0.7;
+    margin-left: 4px;
+}
+
+@media (max-width: 600px) {
+    .shortcut-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+        padding: 5px 0;
+        border-bottom: 1px dashed rgba(128, 128, 128, 0.15);
+    }
+    .shortcut-desc {
+        text-align: left;
+    }
+}
+
+body.shortcuts-modal-open,
+body.shortcuts-modal-open main.results {
+    overflow: hidden !important;
 }
