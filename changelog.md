@@ -1,6 +1,15 @@
 # Open Library Catalog - Project Changelog & Revision History
 
-## Version 1.8a - Mobile Search Keyboard Fix (Current)
+## Version 1.8b - Mobile Search Keyboard Dismiss on Enter (Current)
+
+**Enter Now Retracts the Mobile Keyboard**
+- **Soft Keyboard Dismissal on Enter:** Pressing Enter (the keyboard's "Search" key) in the top search field now blurs the input on touch devices (`(pointer: fine)`/`(hover: hover)` guards keep desktop focus untouched), so the keyboard slides away while results load instead of covering them. `blur()` inside the native keydown gesture retracts the keyboard reliably on Android Chrome and iOS Safari.
+- **Search Affordance Key Label:** Added `enterkeyhint="search"` to `#globalSearchInput` so mobile keyboards label the Enter key "Search" rather than the generic "Go".
+- Enter still runs the same flows as before — Library mode live-filters, catalog mode dispatches the search (only when criteria are present) — so behavior changes only in that the keyboard retreats afterwards.
+
+---
+
+## Version 1.8a - Mobile Search Keyboard Fix
 
 **Top Search Field Unusable on Mobile (Keyboard Auto-Dismiss)**
 - **Resize-Pass Focus Kill:** `restoreHeaderElementsToTop()` re-docked the header search container with an unconditional `insertBefore` on every resize-driven pass (`checkMobileSidebarState`, `applyCompactHeader`, and the rAF resize listener). On phones, the soft keyboard's opening fires `resize` events — an out-of-position container was detached and re-inserted *underneath the focused input*, silently resetting `activeElement` to `<body>` (removals kill focus without any blur/focusout event) and dismissing the keyboard midway through opening. Tapping the top search field could therefore never hold focus; the filter sidebar was unaffected because none of these passes touch it.

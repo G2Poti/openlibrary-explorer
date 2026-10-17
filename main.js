@@ -827,6 +827,15 @@ DOM.globalSearchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
         collapseMobileSidebarIfOpen();
+        // Soft keyboard dismissal: on touch devices, Enter (the "Search" key)
+        // should retreat the keyboard so the results that are about to load
+        // get the real viewport. Desktop keeps focus — there's no keyboard to
+        // raise/lower, and holding focus there simply aids further editing.
+        // blur() inside a native keydown user gesture reliably retracts the
+        // keyboard on both Android Chrome and iOS Safari.
+        if (!(window.matchMedia('(pointer: fine)').matches || window.matchMedia('(hover: hover)').matches)) {
+            DOM.globalSearchInput.blur();
+        }
         if (currentViewMode === 'library') {
             applyLocalFilters();
         } else if (hasActiveSearchCriteria()) {
