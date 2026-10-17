@@ -1,6 +1,16 @@
 # Open Library Catalog - Project Changelog & Revision History
 
-## Version 1.8 - Mobile Sidebar Gesture Overhaul, Content Motion & Search Pagination Fixes (Current)
+## Version 1.8a - Mobile Search Keyboard Fix (Current)
+
+**Top Search Field Unusable on Mobile (Keyboard Auto-Dismiss)**
+- **Resize-Pass Focus Kill:** `restoreHeaderElementsToTop()` re-docked the header search container with an unconditional `insertBefore` on every resize-driven pass (`checkMobileSidebarState`, `applyCompactHeader`, and the rAF resize listener). On phones, the soft keyboard's opening fires `resize` events — an out-of-position container was detached and re-inserted *underneath the focused input*, silently resetting `activeElement` to `<body>` (removals kill focus without any blur/focusout event) and dismissing the keyboard midway through opening. Tapping the top search field could therefore never hold focus; the filter sidebar was unaffected because none of these passes touch it.
+- **Keyboard Lifecycle Guard:** The routine now early-returns while the active element sits inside `.header-search-container`, so no layout pass can steal focus mid-typing; the next pass after blur re-docks normally.
+- **Idempotent Relocations:** The `insertBefore`/`appendChild` re-docks now run only when the node isn't already in the target position (container `nextElementSibling` and `settingsBtn.parentNode` checks), making repeated resize passes true no-ops instead of DOM churn.
+- **Reproduction & Verification:** Instrumented a live-page replay (mobile geometry emulation + resize storms while focused) to capture the focus-detach mechanism on the v1.8 bundle; the fix bundle survives the identical storm with focus intact, container placement preserved, and deliberately displaced containers still re-docked with no focus inside. Static audits (`audit-idents`, `audit-imports`) and the Node smoke harness stay clean.
+
+---
+
+## Version 1.8 - Mobile Sidebar Gesture Overhaul, Content Motion & Search Pagination Fixes
 
 **Mobile Sidebar Drag Performance Overhaul**
 - **rAF-Coalesced Drag Loop:** Touch moves batch into a single `requestAnimationFrame` tick instead of mutating DOM per hardware event (120–240Hz digitizers were dirtying styles multiple times per frame).

@@ -3404,14 +3404,36 @@ export function restoreHeaderElementsToTop() {
     const headerControls = document.querySelector('.header-controls');
     const topHeader = document.querySelector('header');
 
+    // Keyboard lifecycle guard: mobile browsers fire `resize`/layout passes
+    // while the soft keyboard is mid-animation, and every one of those passes
+    // runs this routine through the resize listener (checkMobileSidebarState /
+    // applyCompactHeader). Moving the container out from under the focused
+    // input detaches it and kills focus — activeElement silently resets to
+    // <body> with no blur/focusout event — which dismisses the keyboard
+    // halfway through opening, making the top search field unusable on
+    // phones. While something inside .header-search-container holds focus,
+    // skip all repositions here; the next pass after blur re-docks normally.
+    const activeEl = document.activeElement;
+    if (activeEl && typeof activeEl.closest === 'function' && activeEl.closest('.header-search-container')) {
+        return;
+    }
+
+    // Idempotent moves only: relocate a node if (and only if) it is not
+    // already in the place the current layout needs. Previously the
+    // insertBefore ran unconditionally, and a container that had been even
+    // slightly displaced (e.g. by a desktop-compact pass prior to a resize)
+    // got detached and re-inserted on every resize event — see the guard
+    // above for why that broke the mobile keyboard.
     if (topHeader && headerSearchContainer) {
         if (headerControls && headerControls.parentNode === topHeader) {
-            topHeader.insertBefore(headerSearchContainer, headerControls);
+            if (headerSearchContainer.nextElementSibling !== headerControls) {
+                topHeader.insertBefore(headerSearchContainer, headerControls);
+            }
         } else if (topHeader.lastChild !== headerSearchContainer) {
             topHeader.appendChild(headerSearchContainer);
         }
     }
-    if (headerControls && settingsBtn) {
+    if (headerControls && settingsBtn && settingsBtn.parentNode !== headerControls) {
         headerControls.appendChild(settingsBtn);
     }
 }
