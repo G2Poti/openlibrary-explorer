@@ -1,6 +1,15 @@
 # Open Library Catalog - Project Changelog & Revision History
 
-## Version 1.8b - Mobile Search Keyboard Dismiss on Enter (Current)
+## Version 1.8c - Mobile Bottom-of-Page Cutoff Fix (Current)
+
+**Last Portion of the Page Unreachable on Mobile, Whatever the Search Bar Layout**
+- **`100vh` Root Cause:** `body` sized itself with `height: 100vh` plus `overflow: hidden`. On Android browsers that keep a bottom toolbar (Brave, Firefox, sticker-bar Chrome configs), `vh` measures the *large* viewport (toolbars hidden), so the body extended underneath the browser chrome and the tail of the app's internal scroll area — the "Find More Books" button and status line — was clipped and could never be scrolled to. This hit every layout variant, which is why moving the search bar top/bottom only seemed to shift the symptom rather than fix it.
+- **Dynamic Viewport Fix:** Body now sets `height: 100dvh` (dynamic viewport height, tracking browser toolbar visibility) after the static `100vh` line, which remains as the fallback so browsers without `dvh` behave exactly as before. Desktop is geometry-identical either way; on phones the body now ends precisely at the visible edge above the toolbar, making the bottom of the results fully scrollable.
+- **Consistency:** The codebase already used `calc(100dvh - …)` for the mobile drawer/rail elements — this brings the root container in line with them.
+
+---
+
+## Version 1.8b - Mobile Search Keyboard Dismiss on Enter
 
 **Enter Now Retracts the Mobile Keyboard**
 - **Soft Keyboard Dismissal on Enter:** Pressing Enter (the keyboard's "Search" key) in the top search field now blurs the input on touch devices (`(pointer: fine)`/`(hover: hover)` guards keep desktop focus untouched), so the keyboard slides away while results load instead of covering them. `blur()` inside the native keydown gesture retracts the keyboard reliably on Android Chrome and iOS Safari.

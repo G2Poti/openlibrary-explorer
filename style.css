@@ -68,7 +68,18 @@ body {
     margin: 0;
     display: flex;
     flex-direction: column;
+    /* Mobile: `100vh` alone was the source of the "page bottom cut off" bug —
+       on Android browsers with a visible bottom toolbar (Brave/Firefox/older
+       Chrome), `vh` measures the LARGE viewport (toolbars hidden), so body
+       extended underneath the browser chrome and `overflow: hidden` made the
+       last chunk (Find More Books button, status line) permanently
+       unreachable. `100dvh` is the dynamic viewport height that tracks the
+       toolbar visibility, shrinking body to the actually-visible area; the
+       static `vh` line above stays as the fallback for browsers without dvh
+       (behaving exactly as before there). Desktop viewports get identical
+       geometry either way. */
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     transition: background-color 0.3s, color 0.3s;
 }
