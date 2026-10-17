@@ -1,6 +1,14 @@
 # Open Library Catalog - Project Changelog & Revision History
 
-## Version 1.8c - Mobile Bottom-of-Page Cutoff Fix (Current)
+## Version 1.8d - Mobile End-of-List Spacing Tightened (Current)
+
+**Trimmed the Padding Stack Around the Divider / Find More Books Cluster**
+- **End-of-List Dead Space:** With the bottom of the scroll area now reachable (v1.8c), the desktop end-of-list stack — `.book-grid` `margin-bottom: 2rem` above the divider, `.results-footer` `padding-top: 1.5rem` below it, plus `main.results` bottom padding — read as a lot of empty band on narrow screens. The mobile media block now trims the grid margin and footer padding to `1rem` each (main's `1rem` stays), keeping a deliberate but light breathing space around the "Find More Books" button; desktop is untouched.
+- **Overscroll Note:** The browser's rubber-band stretch past the end of a hard scroll can temporarily widen that empty band in screenshots; persistent visible whitespace while holding the bottom of the page is what this change addresses.
+
+---
+
+## Version 1.8c - Mobile Bottom-of-Page Cutoff Fix
 
 **Last Portion of the Page Unreachable on Mobile, Whatever the Search Bar Layout**
 - **`100vh` Root Cause:** `body` sized itself with `height: 100vh` plus `overflow: hidden`. On Android browsers that keep a bottom toolbar (Brave, Firefox, sticker-bar Chrome configs), `vh` measures the *large* viewport (toolbars hidden), so the body extended underneath the browser chrome and the tail of the app's internal scroll area — the "Find More Books" button and status line — was clipped and could never be scrolled to. This hit every layout variant, which is why moving the search bar top/bottom only seemed to shift the symptom rather than fix it.

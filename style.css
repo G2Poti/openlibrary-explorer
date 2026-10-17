@@ -4604,6 +4604,18 @@ input:checked+.slider.url-slider .icon.list-icon {
         overflow-x: hidden;
     }
 
+    /* Tighter end-of-list spacing on mobile: the desktop stack (grid
+       margin-bottom 2rem + footer padding-top 1.5rem) reads as a lot of
+       dead space now that the bottom of the scroll area is fully reachable
+       above the browser toolbar; phones get a lighter touch. */
+    .book-grid {
+        margin-bottom: 1rem;
+    }
+
+    .results-footer {
+        padding-top: 1rem;
+    }
+
     /* Keep results-header on fixed 52px height grid to preserve bottom border separator */
     .results-header {
         margin: 0 -0.85rem 0.5rem -0.85rem !important;
