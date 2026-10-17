@@ -6,6 +6,10 @@
 - **End-of-List Dead Space:** With the bottom of the scroll area now reachable (v1.8c), the desktop end-of-list stack — `.book-grid` `margin-bottom: 2rem` above the divider, `.results-footer` `padding-top: 1.5rem` below it, plus `main.results` bottom padding — read as a lot of empty band on narrow screens. The mobile media block now trims the grid margin and footer padding to `1rem` each (main's `1rem` stays), keeping a deliberate but light breathing space around the "Find More Books" button; desktop is untouched.
 - **Overscroll Note:** The browser's rubber-band stretch past the end of a hard scroll can temporarily widen that empty band in screenshots; persistent visible whitespace while holding the bottom of the page is what this change addresses.
 
+**Follow-up: the persisting band traced to a hard-coded 64px scroll gutter**
+- **`main.results` Bottom Gutter:** Subsequent on-device-reported persistence led to an in-viewport measurement pass, which isolated the real contributor: a mobile-scoped `padding-bottom: max(4rem, calc(env(safe-area-inset-bottom) + 3rem)) !important` on `main.results` — a 64px dead band below the *last content* regardless of state (home screen included), because `env(safe-area-inset-bottom)` evaluates to 0 without `viewport-fit=cover`, so the `4rem` floor always won. It also dwarfed the trims above, which is why nothing had visibly changed before.
+- The rule now pads by the *actual* safe-area inset (keeping the gesture-bar protection the rule was written for) with a light `1rem` floor instead of a fixed 4rem; removes ~48px of phantom space in the default case, on the home screen and results alike.
+
 ---
 
 ## Version 1.8c - Mobile Bottom-of-Page Cutoff Fix

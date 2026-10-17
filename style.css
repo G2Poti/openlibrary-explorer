@@ -5739,7 +5739,14 @@ input:checked+.slider.url-slider .icon.list-icon {
 
     /* 7. Bottom Content Overflow */
     main.results {
-        padding-bottom: max(4rem, calc(env(safe-area-inset-bottom) + 3rem)) !important;
+        /* `max(4rem, …)` used to force a fixed 64px dead band below the last
+           content on every phone (home screen and results alike) and sat on
+           top of the end-of-list spacing trims — env() reports 0 for pages
+           without viewport-fit=cover, so the 4rem floor always won. Keep the
+           gesture-bar half: pad only as far as the real safe-area inset
+           (usually 0; devices with pill/nav bars report it), with a light
+           1rem floor so the last row never kisses the chrome. */
+        padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
     }
 
     /* 8. Prevent rail action buttons from being clipped */
