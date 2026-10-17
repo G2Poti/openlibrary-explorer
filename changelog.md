@@ -10,6 +10,9 @@
 - **`main.results` Bottom Gutter:** Subsequent on-device-reported persistence led to an in-viewport measurement pass, which isolated the real contributor: a mobile-scoped `padding-bottom: max(4rem, calc(env(safe-area-inset-bottom) + 3rem)) !important` on `main.results` — a 64px dead band below the *last content* regardless of state (home screen included), because `env(safe-area-inset-bottom)` evaluates to 0 without `viewport-fit=cover`, so the `4rem` floor always won. It also dwarfed the trims above, which is why nothing had visibly changed before.
 - The rule now pads by the *actual* safe-area inset (keeping the gesture-bar protection the rule was written for) with a light `1rem` floor instead of a fixed 4rem; removes ~48px of phantom space in the default case, on the home screen and results alike.
 
+**Desktop home screen tail**
+- **Featured-List Orphaned Section Margin:** On desktop the Discover dashboard's featured book list (`#featuredClassicsGrid`) is the dashboard's final section, so its 2rem section margin (kept as spacing between sections elsewhere) rendered as a bare ~64px band under the last card on the home screen only — desktop search results looked right because the Find More button occupies that zone. The grid's bottom margin is now `0.5rem` under `(min-width: 769px)` scoped to this grid, landing the home-screen end at the same 32px gap desktop results show above their divider; the mobile home screen keeps the spacing it already had.
+
 ---
 
 ## Version 1.8c - Mobile Bottom-of-Page Cutoff Fix

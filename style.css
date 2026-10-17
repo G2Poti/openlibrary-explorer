@@ -3080,6 +3080,19 @@ body.sidebar-tag-transitioning .tags-list.grid-tags {
     display: none;
 }
 
+/* Desktop home screen: the featured list is the dashboard's final section
+   ( drawback of margin-as-section-spacing — nothing follows it ), so its
+   2rem bottom margin rendered as pure dead band above the page edge. Trim it
+   to 0.5rem, which with main's 1.5rem bottom padding lands the dashboard's
+   end at the same 32px card-gap the search results display above their
+   Find More divider. Desktop-scoped: the mobile dashboard keeps its current
+   comfortable end-of-list spacing. */
+@media (min-width: 769px) {
+    #discoverDashboard #featuredClassicsGrid {
+        margin-bottom: 0.5rem;
+    }
+}
+
 .hidden-message {
     font-size: 0.95rem;
     color: #64748b;
