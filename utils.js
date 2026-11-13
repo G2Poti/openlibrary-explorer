@@ -2,6 +2,13 @@
 // dependency leaf so every other module can import from it freely.
 export const isScrollActive = () =>
     typeof document !== 'undefined' && !!document.body && document.body.classList.contains('is-scrolling');
+// True when a keyboard event belongs to an active IME composition (CJK input).
+// `isComposing` covers Chrome/Firefox; the deprecated keyCode 229 check covers
+// Safari, which can deliver the IME-confirming Enter keydown after
+// compositionend has already reset isComposing (WebKit bug 165004).
+// Custom Enter/printable-key handlers must bail out on this so the IME keeps
+// ownership of the keystroke.
+export const isComposingEvent = (e) => !!e && (e.isComposing || e.keyCode === 229);
 const _escMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
 export const escapeHTML = (str) => {
     if (!str) return '';

@@ -2592,6 +2592,9 @@ body.sidebar-tag-transitioning .tags-list.grid-tags {
     gap: 6px;
     align-content: flex-start;
     overflow-y: auto;
+    /* The popup owns its scroll: at the top/bottom it must not chain into the
+       results list behind it. */
+    overscroll-behavior: contain;
     user-select: none;
     -webkit-user-select: none;
     /* Hard caps regardless of how many tags there are — a book with 173
@@ -3573,15 +3576,36 @@ button#loadMoreBtn:disabled {
 }
 
 /* Side Details Drawer Overlay */
+/* Native <dialog> reset (see .shortcuts-modal-overlay) */
 .details-drawer-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: visible;
     z-index: 200;
-    display: flex;
+    display: none;
     justify-content: flex-end;
+}
+
+.details-drawer-overlay[open] {
+    display: flex;
+}
+
+.details-drawer-overlay::backdrop {
+    background: transparent;
+    overflow: hidden;
+    overscroll-behavior: contain;
+}
+
+.details-drawer-overlay:modal {
+    overscroll-behavior: contain;
 }
 
 .details-drawer-backdrop {
@@ -7564,16 +7588,46 @@ img.cover-pending {
 }
 
 /* ── Keyboard Shortcuts Modal ────────────────────────────────────────── */
+/* Native <dialog>: reset the UA's centred sizing so it can stay a
+   full-viewport overlay. `display` is scoped to [open] so the closed state
+   keeps the UA's own display:none. */
 .shortcuts-modal-overlay {
     position: fixed;
     inset: 0;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: visible;
     z-index: 10002;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.shortcuts-modal-overlay[open] {
+    display: flex;
+}
+
+/* The dim/blur layer is the inner .shortcuts-modal-backdrop, which fades
+   with .active; the UA backdrop would double it up. */
+.shortcuts-modal-overlay::backdrop {
+    background: transparent;
+    overflow: hidden;
+    overscroll-behavior: contain;
+}
+
+/* Keep wheel/trackpad gestures inside the modal from chaining to the results
+   scroller behind it (progressive: Safari ignores overscroll-behavior). */
+.shortcuts-modal-overlay:modal {
+    overscroll-behavior: contain;
 }
 
 .shortcuts-modal-overlay.active {

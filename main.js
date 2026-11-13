@@ -4,7 +4,7 @@ import {
     ANNA_ARCHIVE_URL, API_BASE, API_CONTACT_EMAIL,
     parseSafeInt, getCleanProxyBase, normalizeCacheKey,
     langMapToOL, langMapToAA, LANGUAGE_ALIASES, CANONICAL_LANG_MAP,
-    normalizeLanguageCode, editionLangMatches
+    normalizeLanguageCode, editionLangMatches, isComposingEvent
 } from './utils.js';
 import { DOM, watchInputs, INPUT_IDS, RENDER_CHUNK } from './dom.js';
 import {
@@ -473,6 +473,7 @@ DOM.limitValueDisplay.addEventListener('focus', (e) => {
 });
 DOM.limitValueDisplay.addEventListener('blur', validateAndApplyInputLimit);
 DOM.limitValueDisplay.addEventListener('keydown', (e) => {
+    if (isComposingEvent(e)) return;
     if (e.key === 'Enter') {
         e.preventDefault();
         validateAndApplyInputLimit();
@@ -824,6 +825,7 @@ DOM.globalSearchBtn.addEventListener('click', () => {
     }
 });
 DOM.globalSearchInput.addEventListener('keydown', (e) => {
+    if (isComposingEvent(e)) return;
     if (e.key === 'Enter') {
         e.preventDefault();
         collapseMobileSidebarIfOpen();
@@ -1704,7 +1706,10 @@ export const openShortcutsModal = () => {
     if (!DOM.shortcutsModal) return;
     closeAllRailPopovers();
     document.body.classList.add('shortcuts-modal-open');
-    DOM.shortcutsModal.style.display = 'flex';
+    // Native modal: inert page, focus containment in the top layer, Esc/back
+    // gesture dismissal, and focus returned to the trigger on close — none of
+    // which this overlay had while it was a plain div.
+    if (!DOM.shortcutsModal.open) DOM.shortcutsModal.showModal();
     DOM.shortcutsModal.offsetHeight; // Force reflow
     DOM.shortcutsModal.classList.add('active');
 };
@@ -1713,9 +1718,10 @@ export const closeShortcutsModal = () => {
     if (!DOM.shortcutsModal || !DOM.shortcutsModal.classList.contains('active')) return;
     document.body.classList.remove('shortcuts-modal-open');
     DOM.shortcutsModal.classList.remove('active');
+    // Let the 200ms fade finish before the dialog leaves the top layer.
     setTimeout(() => {
-        if (DOM.shortcutsModal && !DOM.shortcutsModal.classList.contains('active')) {
-            DOM.shortcutsModal.style.display = 'none';
+        if (DOM.shortcutsModal && !DOM.shortcutsModal.classList.contains('active') && DOM.shortcutsModal.open) {
+            DOM.shortcutsModal.close();
         }
     }, 200);
 };
@@ -1740,6 +1746,12 @@ if (DOM.shortcutsModalBackdrop) {
 if (DOM.shortcutsModal) {
     DOM.shortcutsModal.addEventListener('click', (e) => {
         e.stopPropagation();
+    });
+    // Esc and the mobile back gesture close the dialog natively; keep the
+    // body class and fade state in sync on that path too.
+    DOM.shortcutsModal.addEventListener('close', () => {
+        document.body.classList.remove('shortcuts-modal-open');
+        DOM.shortcutsModal.classList.remove('active');
     });
 }
 

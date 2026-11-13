@@ -37,7 +37,7 @@ import {
 } from './storage-cache.js';
 import { fetchOpenLibrary, isApiBlocked, apiBlockResumeTime, apiTelemetry, fetchDiscoverBundleFromProxy } from './network-engine.js';
 import { DOM, RENDER_CHUNK, watchInputs, INPUT_IDS } from './dom.js';
-import { cleanSubjects, normalizeLanguageCode, escapeHTML, editionLangMatches, API_BASE, API_CONTACT_EMAIL, renderErrorHTML } from './utils.js';
+import { cleanSubjects, normalizeLanguageCode, escapeHTML, editionLangMatches, API_BASE, API_CONTACT_EMAIL, renderErrorHTML, isComposingEvent } from './utils.js';
 
 export const resolvedTitlesInActivePass = new Set();
 // Developer Cache Clear Protocol:
@@ -336,6 +336,7 @@ export function setupTagInput(inputId, containerId, onInputCleared) {
         if (currentViewMode === 'library') applyLocalFilters();
     };
     input.addEventListener('keydown', (e) => {
+        if (isComposingEvent(e)) return;
         if (e.key === 'Enter') {
             e.preventDefault();
             // Coordination with setupAutocomplete (registered AFTER this
@@ -539,6 +540,7 @@ export function appendKeyboardListeners() {
     // duplicated results when searching from the header bar).
     document.querySelectorAll('input:not(.watch-input-tag):not(#globalSearchInput), select').forEach(element => {
         element.addEventListener('keydown', (event) => {
+            if (isComposingEvent(event)) return;
             if (event.key === 'Enter') {
                 event.preventDefault();
                 collapseMobileSidebarIfOpen();
@@ -706,6 +708,25 @@ export function setupAutocomplete(inputId, listId, indicatorId, ghostId, isLocal
     // always appears as the FIRST row of the suggestion list (see below), so
     // the ghost duplicated it and made Enter semantics ambiguous.
     if (ghost) ghost.style.display = 'none';
+    // ARIA combobox wiring: the input is the combobox, the <ul> is its popup.
+    // Without this, the suggestions were completely silent for screen readers.
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-controls', listId);
+    input.setAttribute('aria-expanded', 'false');
+    list.setAttribute('role', 'listbox');
+    const syncListAria = () => {
+        const isOpen = list.style.display === 'block';
+        input.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        if (isOpen && currentMatches.length) {
+            input.setAttribute('aria-activedescendant', `${listId}-opt-${activeIndex}`);
+        } else {
+            input.removeAttribute('aria-activedescendant');
+        }
+    };
+    // Every branch hides/shows the list through style.display; observe that
+    // instead of threading a sync call through each of them.
+    new MutationObserver(syncListAria).observe(list, { attributes: true, attributeFilter: ['style'] });
     const isApiCooldownActive = () => isApiBlocked && Date.now() < apiBlockResumeTime;
     const renderList = () => {
         list.innerHTML = '';
@@ -715,6 +736,9 @@ export function setupAutocomplete(inputId, listId, indicatorId, ghostId, isLocal
             currentMatches.forEach((subj, idx) => {
                 const li = document.createElement('li');
                 li.className = 'autocomplete-item' + (idx === activeIndex ? ' active' : '');
+                li.id = `${listId}-opt-${idx}`;
+                li.setAttribute('role', 'option');
+                li.setAttribute('aria-selected', idx === activeIndex ? 'true' : 'false');
                 const name = subj.name || subj;
                 // A numeric count — INCLUDING 0, which matters for the typed
                 // row ("this subject exists but has no works") — renders as a
@@ -736,6 +760,7 @@ export function setupAutocomplete(inputId, listId, indicatorId, ghostId, isLocal
         } else {
             list.style.display = 'none';
         }
+        syncListAria();
     };
     const renderLocalSuggestions = (query) => {
         if (!cachedSubjectCounts) {
@@ -759,6 +784,16 @@ export function setupAutocomplete(inputId, listId, indicatorId, ghostId, isLocal
         setTimeout(() => { list.style.display = 'none'; indicator.style.display = 'none'; indicator.classList.remove('blocked'); ghost.innerHTML = ''; input.placeholder = managerRef.getTags().length ? '' : 'e.g., Fantasy'; }, 250);
     });
     input.addEventListener('keydown', (e) => {
+        if (isComposingEvent(e)) return;
+        // Esc belongs to the suggestion list while it is open (ARIA combobox
+        // contract); stop it before the page-level Esc handlers close the
+        // drawer/settings behind it.
+        if (e.key === 'Escape' && list.style.display === 'block') {
+            e.preventDefault();
+            e.stopPropagation();
+            list.style.display = 'none';
+            return;
+        }
         if (list.style.display === 'block' && currentMatches.length > 0) {
             if (e.key === 'ArrowDown') {
                 e.preventDefault();

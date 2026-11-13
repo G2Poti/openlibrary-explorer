@@ -562,8 +562,9 @@ export const openDetailsDrawer = async (b, finalAALang) => {
     currentDrawerWorkKey = b.key;
     // Show loading spinner for description
     DOM.detailsDescription.innerHTML = '<div class="details-spinner"></div>';
-    // Open drawer overlay visually
-    DOM.detailsDrawer.style.display = 'flex';
+    // Open the drawer as a native modal: inert page, focus containment in the
+    // top layer, Esc/back-gesture dismissal, and focus restored to the card.
+    if (!DOM.detailsDrawer.open) DOM.detailsDrawer.showModal();
     DOM.detailsDrawer.offsetHeight; // Force reflow
     DOM.detailsDrawer.classList.add('active');
     // Description already fetched before? Show it immediately and skip the work
@@ -681,10 +682,20 @@ export const closeDetailsDrawer = () => {
     currentDrawerWorkKey = null;
     closeTagsPopup();
     DOM.detailsDrawer.classList.remove('active');
+    // Let the 300ms slide-out finish before the dialog leaves the top layer.
     setTimeout(() => {
-        DOM.detailsDrawer.style.display = 'none';
+        if (!DOM.detailsDrawer.classList.contains('active') && DOM.detailsDrawer.open) {
+            DOM.detailsDrawer.close();
+        }
     }, 300);
 };
+// Esc and the mobile back gesture close the dialog natively; keep the fade
+// state and the in-flight synopsis guard in sync on that path too.
+DOM.detailsDrawer.addEventListener('close', () => {
+    currentDrawerWorkKey = null;
+    closeTagsPopup();
+    DOM.detailsDrawer.classList.remove('active');
+});
 export const needsTranslation = (b, targetLang) => {
     if (!DOM.translateToggle || !DOM.translateToggle.checked) return false;
     if (!targetLang || !b.key) return false;
@@ -1393,6 +1404,16 @@ export const closeTagsPopup = () => {
     _tagsPopupClosedAt = Date.now();
 };
 
+// Any wheel aimed outside the popup dismisses it. The page may still scroll on
+// that same gesture — the popup is only an annotation — but it must never stay
+// floating over a list that is scrolling without it. Registered capture and
+// passive so it runs before the smooth-scroll engine and never blocks input.
+window.addEventListener('wheel', (e) => {
+    if (openTagsPopupEl && !(e.target instanceof Node && openTagsPopupEl.contains(e.target))) {
+        closeTagsPopup();
+    }
+}, { capture: true, passive: true });
+
 export const openTagsPopup = (anchorEl) => {
     if (Date.now() - _tagsPopupClosedAt < 80) return;
 
@@ -1414,6 +1435,11 @@ export const openTagsPopup = (anchorEl) => {
         anchorEl.classList.add('active');
     }
 
+    // A native modal dialog makes everything outside its subtree inert,
+    // including overlays appended to <body>, so host the popup inside the
+    // open drawer to keep it clickable there.
+    const host = (DOM.detailsDrawer && DOM.detailsDrawer.open) ? DOM.detailsDrawer : document.body;
+
     const backdrop = document.createElement('div');
     backdrop.className = 'tags-popup-backdrop';
     backdrop.addEventListener('click', (e) => {
@@ -1421,13 +1447,13 @@ export const openTagsPopup = (anchorEl) => {
         e.stopPropagation();
         closeTagsPopup();
     });
-    document.body.appendChild(backdrop);
+    host.appendChild(backdrop);
     tagsPopupBackdropEl = backdrop;
 
     const popup = document.createElement('div');
     popup.className = 'tags-popup';
     popup.innerHTML = subjects.map((s) => `<span class="tag">${escapeHTML(s)}</span>`).join('');
-    document.body.appendChild(popup);
+    host.appendChild(popup);
     openTagsPopupEl = popup;
 
     const rect = anchorEl.getBoundingClientRect();
@@ -2578,8 +2604,8 @@ export function syncWheelListener() {
 export const isOverlayScrollContainer = (el) => {
     if (!el || !(el instanceof HTMLElement)) return false;
     return !!(
-        (el.matches && el.matches('.settings-dropdown, .rail-popover, .shortcuts-modal-container, .shortcuts-modal-body, .telemetry-floating-modal, .telemetry-floating-body, .details-drawer-container')) ||
-        (el.closest && el.closest('.settings-dropdown, .rail-popover, .shortcuts-modal-container, .shortcuts-modal-body, .telemetry-floating-modal, .telemetry-floating-body, .details-drawer-container'))
+        (el.matches && el.matches('.settings-dropdown, .rail-popover, .tags-popup, .shortcuts-modal-container, .shortcuts-modal-body, .telemetry-floating-modal, .telemetry-floating-body, .details-drawer-container')) ||
+        (el.closest && el.closest('.settings-dropdown, .rail-popover, .tags-popup, .shortcuts-modal-container, .shortcuts-modal-body, .telemetry-floating-modal, .telemetry-floating-body, .details-drawer-container'))
     );
 };
 

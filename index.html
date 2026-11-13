@@ -368,8 +368,8 @@
                 </div>
             </div>
         </div>
-        <div class="settings-version-banner" id="settingsVersionBanner" title="Open Library Explorer v1.8d">
-            v1.8d
+        <div class="settings-version-banner" id="settingsVersionBanner" title="Open Library Explorer v1.8e">
+            v1.8e
         </div>
     </div>
     <!-- Mobile Alternative Layout only: multi-select action bar pinned below the
@@ -801,7 +801,7 @@
                         <button id="toggleGenresBtn" class="nav-btn"><svg class="discover-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg><span class="btn-word-extra">Popular </span><span class="btn-word-core">Genres</span></button>
                     </div>
                 </div>
-                <div id="stageToasts" class="stage-toasts"></div>
+                <div id="stageToasts" class="stage-toasts" role="status" aria-live="polite" aria-atomic="false"></div>
                 <div class="results-header-right">
                     <span id="oleBrandBadge" class="ole-brand-badge" title="OpenLibrary Explorer"><span class="logo-icon">📚</span><span class="ole-brand-badge-text"><span class="ole-brand-badge-title">OpenLibrary Explorer</span><span class="ole-brand-badge-subtitle">Browse millions of books your way</span></span></span>
                     <button id="toggleAllBtn" class="nav-btn" style="display: none;" aria-label="Toggle all books in library" title="Toggle all books in library"></button>
@@ -827,8 +827,8 @@
             </div>
         </main>
     </div>
-    <!-- Side Details Drawer Overlay -->
-    <div id="detailsDrawer" class="details-drawer-overlay" style="display: none;">
+    <!-- Side Details Drawer Overlay (native <dialog> modal) -->
+    <dialog id="detailsDrawer" class="details-drawer-overlay" aria-labelledby="detailsTitle">
         <div class="details-drawer-backdrop" id="detailsBackdrop"></div>
         <div class="details-drawer-container">
             <div class="details-drawer-header">
@@ -863,7 +863,7 @@
                     style="flex:1; padding: 0.75rem; font-size: 0.95rem;">View on OpenLibrary</button>
             </div>
         </div>
-    </div>
+    </dialog>
     <!-- Floating Draggable Telemetry HUD Modal -->
     <div id="telemetryFloatingModal" class="telemetry-floating-modal" style="display: none;">
         <div class="telemetry-floating-header" id="telemetryHeaderDraggable">
@@ -1064,8 +1064,9 @@
         </div>
     </div>
 
-    <!-- Keyboard Shortcuts Modal -->
-    <div id="shortcutsModal" class="shortcuts-modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="shortcutsModalTitle">
+    <!-- Keyboard Shortcuts Modal (native <dialog>: focus containment, Esc,
+         top layer and focus restore come from the browser) -->
+    <dialog id="shortcutsModal" class="shortcuts-modal-overlay" aria-labelledby="shortcutsModalTitle">
         <div class="shortcuts-modal-backdrop" id="shortcutsModalBackdrop"></div>
         <div class="shortcuts-modal-container">
             <div class="shortcuts-modal-header">
@@ -1157,7 +1158,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </dialog>
     <script type="module" src="main.js"></script>
 </body>
 

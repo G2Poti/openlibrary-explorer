@@ -1,6 +1,16 @@
 # Open Library Catalog - Project Changelog & Revision History
 
-## Version 1.8d - Mobile End-of-List Spacing Tightened (Current)
+## Version 1.8e - Accessibility & Overlay Polish (Current)
+
+**Modern Web Guidance pass over the overlays — no intended visual change.**
+- **Native `<dialog>` for the shortcuts sheet and details drawer.** Both were hand-built overlays where focus could escape into the page, the background stayed interactive and focus was never restored. `showModal()` now supplies focus containment, an inert background, top-layer rendering, Esc/back-gesture dismissal and focus return; the manual `role`/`aria-modal`, the inline `display` toggles and the duplicate Esc branches are gone. The existing backdrop blur and slide/fade transitions are untouched.
+- **IME-safe Enter.** The custom Enter handlers (global search, tag input + autocomplete, fetch-limit field, filter inputs) now ignore keystrokes owned by an active IME composition — `isComposing`, plus `keyCode 229` for Safari's event-ordering bug — so confirming a CJK candidate no longer fires a search or commits half-typed text.
+- **Autocomplete announces itself.** The tag fields expose `combobox`/`listbox`/`option` semantics with `aria-expanded` and `aria-activedescendant`, Esc closes the suggestion list, and the toast stack is a polite live region.
+- **Tags popup scroll containment.** A "+N subjects" popup now keeps its own scroll at the top/bottom instead of chaining into the results list, and any wheel outside it dismisses the popup first, so it can no longer float over a page that is scrolling without it.
+
+---
+
+## Version 1.8d - Mobile End-of-List Spacing Tightened
 
 **Trimmed the Padding Stack Around the Divider / Find More Books Cluster**
 - **End-of-List Dead Space:** With the bottom of the scroll area now reachable (v1.8c), the desktop end-of-list stack — `.book-grid` `margin-bottom: 2rem` above the divider, `.results-footer` `padding-top: 1.5rem` below it, plus `main.results` bottom padding — read as a lot of empty band on narrow screens. The mobile media block now trims the grid margin and footer padding to `1rem` each (main's `1rem` stays), keeping a deliberate but light breathing space around the "Find More Books" button; desktop is untouched.
