@@ -5,6 +5,10 @@
 import localforage from 'localforage';
 import { escapeHTML } from './utils.js';
 
+export const coverStore = typeof localforage.createInstance === 'function'
+    ? localforage.createInstance({ name: 'openlibrary_explorer', storeName: 'covers' })
+    : localforage;
+
 let activeStorageProxyUrl = '';
 export const setStorageProxyUrl = (url) => { activeStorageProxyUrl = url || ''; };
 
@@ -106,11 +110,13 @@ export const rebuildTranslationReverseIndex = () => {
         translationReverseIndex.get(lang).set(translatedTitle.trim().toLowerCase(), workKey);
     }
 };
-export const setTranslationCache = (cacheKey, title, coverId = null, editionKey = null) => {
+export const setTranslationCache = (cacheKey, title, coverId = null, editionKey = null, isNegative = false) => {
     if (typeof title !== 'string') return;
+    const prevTitle = translationCache.get(cacheKey);
     // LRU Refresh: delete and set moves entry to the tail (newest)
     if (translationCache.has(cacheKey)) translationCache.delete(cacheKey);
     translationCache.set(cacheKey, title);
+    translationCacheDirty = true;
 
     const validCoverId = coverId && parseInt(coverId) > 0 ? parseInt(coverId) : null;
     if (validCoverId) {
@@ -125,10 +131,19 @@ export const setTranslationCache = (cacheKey, title, coverId = null, editionKey 
     if (lastUnderscore !== -1) {
         const workKey = cacheKey.substring(0, lastUnderscore);
         const lang = cacheKey.substring(lastUnderscore + 1);
-        if (!translationReverseIndex.has(lang)) {
-            translationReverseIndex.set(lang, new Map());
+        const langIndex = translationReverseIndex.get(lang);
+        if (langIndex && typeof prevTitle === 'string') {
+            const prevNorm = prevTitle.trim().toLowerCase();
+            if (langIndex.get(prevNorm) === workKey) {
+                langIndex.delete(prevNorm);
+            }
         }
-        translationReverseIndex.get(lang).set(title.trim().toLowerCase(), workKey);
+        if (!isNegative) {
+            if (!translationReverseIndex.has(lang)) {
+                translationReverseIndex.set(lang, new Map());
+            }
+            translationReverseIndex.get(lang).set(title.trim().toLowerCase(), workKey);
+        }
     }
 };
 export const deleteTranslationCache = (cacheKey) => {
@@ -136,6 +151,7 @@ export const deleteTranslationCache = (cacheKey) => {
         const title = translationCache.get(cacheKey);
         translationCache.delete(cacheKey);
         translationCoverCache.delete(cacheKey);
+        translationCacheDirty = true;
         const lastUnderscore = cacheKey.lastIndexOf('_');
         if (lastUnderscore !== -1) {
             const lang = cacheKey.substring(lastUnderscore + 1);
@@ -277,9 +293,23 @@ export const loadTranslationCache = async () => {
     }
 };
 export let saveTranslationCacheTimer = null;
+let translationCacheDirty = false;
+let isSavingTranslationCache = false;
+let resaveTranslationCachePending = false;
 export const saveTranslationCache = (immediate = false) => {
-    if (saveTranslationCacheTimer) clearTimeout(saveTranslationCacheTimer);
+    if (!translationCacheDirty && !immediate) return;
+    if (saveTranslationCacheTimer) {
+        clearTimeout(saveTranslationCacheTimer);
+        saveTranslationCacheTimer = null;
+    }
     const doSave = async () => {
+        if (!translationCacheDirty) return;
+        if (isSavingTranslationCache) {
+            resaveTranslationCachePending = true;
+            return;
+        }
+        isSavingTranslationCache = true;
+        translationCacheDirty = false;
         try {
             pruneTranslationCacheIfLarge();
             const titlesObj = {};
@@ -295,14 +325,34 @@ export const saveTranslationCache = (immediate = false) => {
             await localforage.setItem('ole_translation_cache_v10', titlesObj);
             await localforage.setItem('ole_translation_cover_cache_v3', coversObj);
         } catch (e) {
+            translationCacheDirty = true;
             console.error('Failed to save translation cache:', e);
+        } finally {
+            isSavingTranslationCache = false;
+            if (resaveTranslationCachePending) {
+                resaveTranslationCachePending = false;
+                if (translationCacheDirty) doSave();
+            }
         }
     };
     if (immediate) {
         return doSave();
     }
-    saveTranslationCacheTimer = setTimeout(doSave, 500);
+    saveTranslationCacheTimer = setTimeout(() => {
+        saveTranslationCacheTimer = null;
+        doSave();
+    }, 2000);
 };
+if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden' && translationCacheDirty) saveTranslationCache(true);
+    });
+}
+if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', () => {
+        if (translationCacheDirty) saveTranslationCache(true);
+    });
+}
 // Hub entry point for Developer Cache Clear: ESM forbids reassigning an
 // imported let, so the hub invalidates the generation through this setter.
 export const bumpTranslationGeneration = () => { translationGenerationToken++; };
@@ -384,18 +434,60 @@ export const hasCoverInMemory = (coverId) => {
 
 export const COVER_404_MEMORY_CACHE_MAX = 500;
 
+export const coverInFlightPromises = new Map();
+export const knownCachedCoverIds = new Set();
+export const knownNegCoverIds = new Set();
+export let knownCoverIndexReady = false;
+let coverIndexInitPromise = null;
+export const initCoverIndex = () => {
+    if (knownCoverIndexReady) return Promise.resolve();
+    if (coverIndexInitPromise) return coverIndexInitPromise;
+    if (typeof coverStore.keys !== 'function') {
+        knownCoverIndexReady = true;
+        return Promise.resolve();
+    }
+    coverIndexInitPromise = Promise.race([
+        coverStore.keys().then(keys => {
+            if (Array.isArray(keys)) {
+                keys.forEach(k => {
+                    if (typeof k !== 'string') return;
+                    if (k.startsWith(COVER_DB_PREFIX)) knownCachedCoverIds.add(k.slice(COVER_DB_PREFIX.length));
+                    else if (k.startsWith(COVER_404_DB_PREFIX)) knownNegCoverIds.add(k.slice(COVER_404_DB_PREFIX.length));
+                });
+            }
+            knownCoverIndexReady = true;
+        }).catch(() => { }),
+        new Promise(resolve => setTimeout(resolve, 1200))
+    ]);
+    return coverIndexInitPromise;
+};
+
 export const rememberCoverNegative = (coverId, reason = '404') => {
     const cleanId = normalizeCoverId(coverId);
     if (!cleanId) return;
     const record = { ts: Date.now(), reason };
     cover404MemoryCache.set(cleanId, record);
+    knownNegCoverIds.add(cleanId);
     if (cover404MemoryCache.size > COVER_404_MEMORY_CACHE_MAX) {
         const oldest = cover404MemoryCache.keys().next().value;
         cover404MemoryCache.delete(oldest);
     }
     if (!coverIdbSuspect) {
-        localforage.setItem(`${COVER_404_DB_PREFIX}${cleanId}`, JSON.stringify(record)).catch(() => { });
+        coverStore.setItem(`${COVER_404_DB_PREFIX}${cleanId}`, JSON.stringify(record)).catch(() => { });
     }
+};
+
+export const raceCoverIdb = (promise, timeoutMs = 1200) => {
+    let tid;
+    return Promise.race([
+        Promise.resolve(promise).catch(() => null),
+        new Promise(resolve => {
+            tid = setTimeout(() => {
+                coverIdbSuspect = true;
+                resolve(null);
+            }, timeoutMs);
+        })
+    ]).finally(() => clearTimeout(tid));
 };
 
 export const getNegativeCachedCover = async (coverId) => {
@@ -410,15 +502,14 @@ export const getNegativeCachedCover = async (coverId) => {
         }
     }
     if (coverIdbSuspect) return null;
+    if (knownCoverIndexReady && !knownNegCoverIds.has(cleanId)) return null;
     try {
-        const raw = await Promise.race([
-            localforage.getItem(`${COVER_404_DB_PREFIX}${cleanId}`).catch(() => null),
-            new Promise(resolve => setTimeout(() => { resolve(null); }, 1200))
-        ]);
+        const raw = await raceCoverIdb(coverStore.getItem(`${COVER_404_DB_PREFIX}${cleanId}`));
         if (!raw) return null;
-        const parsed = JSON.parse(raw);
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
         if (!parsed || (parsed.ts && Date.now() - parsed.ts > COVER_CACHE_TTL)) return null;
         cover404MemoryCache.set(cleanId, parsed);
+        knownNegCoverIds.add(cleanId);
         if (cover404MemoryCache.size > COVER_404_MEMORY_CACHE_MAX) {
             const oldest = cover404MemoryCache.keys().next().value;
             cover404MemoryCache.delete(oldest);
@@ -429,18 +520,38 @@ export const getNegativeCachedCover = async (coverId) => {
     }
 };
 
+const blobToObjectOrDataUrl = (blob) => {
+    if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+        return URL.createObjectURL(blob);
+    }
+    return null;
+};
+
 export const getCachedCoverDataUrl = async (coverId) => {
     const cleanId = normalizeCoverId(coverId);
     if (!cleanId) return null;
     const inMem = getCoverFromMemory(cleanId);
     if (inMem) return inMem;
+    if (coverIdbSuspect) return null;
+    if (knownCoverIndexReady && !knownCachedCoverIds.has(cleanId)) return null;
     try {
-        const raw = await localforage.getItem(`${COVER_DB_PREFIX}${cleanId}`);
+        let raw = await coverStore.getItem(`${COVER_DB_PREFIX}${cleanId}`);
+        if (!raw && coverStore !== localforage) {
+            raw = await localforage.getItem(`${COVER_DB_PREFIX}${cleanId}`).catch(() => null);
+        }
         if (!raw) return null;
-        const parsed = JSON.parse(raw);
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
         if (!parsed || Date.now() - parsed.ts > COVER_CACHE_TTL) return null;
-        rememberCoverInMemory(cleanId, parsed.dataUrl);
-        return parsed.dataUrl;
+        let resolvedUrl = null;
+        if (typeof Blob !== 'undefined' && parsed.blob instanceof Blob) {
+            resolvedUrl = blobToObjectOrDataUrl(parsed.blob);
+        } else if (parsed.dataUrl) {
+            resolvedUrl = parsed.dataUrl;
+        }
+        if (!resolvedUrl) return null;
+        rememberCoverInMemory(cleanId, resolvedUrl);
+        knownCachedCoverIds.add(cleanId);
+        return resolvedUrl;
     } catch {
         return null;
     }
@@ -456,9 +567,38 @@ export const getWorkApiUrl = (key) => {
     return `https://openlibrary.org${cleanKey}.json`;
 };
 
+export const clearCoverStore = async () => {
+    coverMemoryCache.forEach(val => {
+        if (typeof val === 'string' && val.startsWith('blob:')) {
+            try { URL.revokeObjectURL(val); } catch { }
+        }
+    });
+    coverMemoryCache.clear();
+    cover404MemoryCache.clear();
+    knownCachedCoverIds.clear();
+    knownNegCoverIds.clear();
+    coverFetchInFlight.clear();
+    coverInFlightPromises.clear();
+    try {
+        if (typeof coverStore.clear === 'function') {
+            await coverStore.clear();
+        }
+    } catch { }
+    try {
+        if (typeof localforage.keys === 'function') {
+            const allKeys = await localforage.keys();
+            for (const k of allKeys) {
+                if (k.startsWith(COVER_DB_PREFIX) || k.startsWith(COVER_404_DB_PREFIX)) {
+                    await localforage.removeItem(k).catch(() => {});
+                }
+            }
+        }
+    } catch { }
+};
+
 export const cacheCoverInBackground = (coverId) => {
     const cleanId = normalizeCoverId(coverId);
-    if (!cleanId || coverFetchInFlight.has(cleanId)) return;
+    if (!cleanId || coverFetchInFlight.has(cleanId) || coverInFlightPromises.has(cleanId)) return;
     if (cover404MemoryCache.has(cleanId) || hasCoverInMemory(cleanId)) return;
     coverFetchInFlight.add(cleanId);
     coverFetchQueue.push(cleanId);
@@ -475,35 +615,7 @@ export const processCoverFetchQueue = () => {
             continue;
         }
         coverFetchActive++;
-        const url = getCoverUrl(cleanId, 'M', false);
-        fetch(url)
-            .then(async (res) => {
-                if (!res.ok) {
-                    if (res.status === 404) {
-                        telemetryHub?.recordError?.(404, url);
-                        rememberCoverNegative(cleanId, '404');
-                    }
-                    throw new Error('Cover fetch failed');
-                }
-                const blob = await res.blob();
-                if (blob.size < 100) {
-                    // Open Library transparent placeholder rejection (1x1 dummy image defense)
-                    rememberCoverNegative(cleanId, 'empty_placeholder');
-                    throw new Error('Placeholder dummy image');
-                }
-                if (blob.size > 400 * 1024) return null;
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.onerror = () => reject(reader.error);
-                    reader.readAsDataURL(blob);
-                });
-            })
-            .then((dataUrl) => {
-                if (!dataUrl) return;
-                rememberCoverInMemory(cleanId, dataUrl);
-                return localforage.setItem(`${COVER_DB_PREFIX}${cleanId}`, JSON.stringify({ ts: Date.now(), dataUrl }));
-            })
+        fetchCoverDataUrl(cleanId)
             .catch(() => { /* best-effort only */ })
             .finally(() => {
                 coverFetchInFlight.delete(coverId);
@@ -514,24 +626,138 @@ export const processCoverFetchQueue = () => {
     }
 };
 
-// ── Ordered sequential cover loading ─────────────────────────────────────
-// Covers used to race in whatever order the network/cache resolved them.
-// Now every rendered batch loads strictly in READING ORDER (left→right,
-// top→bottom = DOM order): exactly ONE network cover in flight at a time,
-// while memory/IndexedDB hits fill instantly without stealing the slot.
-// A generation token cancels stale sequences the moment a newer batch is
-// scheduled (searches, view switches, chunk renders).
-export const fetchCoverDataUrl = async (coverId) => {
+// ── Ordered sequential & progressive cover loading ───────────────────────
+const scheduleIdleTask = (fn) => {
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(fn, { timeout: 1500 });
+    } else {
+        setTimeout(fn, 100);
+    }
+};
+
+const persistCoverBlobToCache = async (cleanId, blob, fallbackUrl = '') => {
+    if (!blob || blob.size < 100) {
+        rememberCoverNegative(cleanId, 'empty_placeholder');
+        return null;
+    }
+    const objectUrl = blobToObjectOrDataUrl(blob);
+    if (objectUrl) {
+        rememberCoverInMemory(cleanId, objectUrl);
+        // Persist Blobs <= 400 KB in dedicated IDB cover store (skips base64/JSON overhead)
+        if (blob.size <= 400 * 1024 && !coverIdbSuspect) {
+            knownCachedCoverIds.add(cleanId);
+            coverStore.setItem(`${COVER_DB_PREFIX}${cleanId}`, { ts: Date.now(), blob }).catch(() => { });
+        }
+        return objectUrl;
+    }
+    if (blob.size > 400 * 1024) return fallbackUrl || null;
+    const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+    });
+    if (dataUrl) {
+        rememberCoverInMemory(cleanId, dataUrl);
+        if (!coverIdbSuspect) {
+            knownCachedCoverIds.add(cleanId);
+            coverStore.setItem(`${COVER_DB_PREFIX}${cleanId}`, { ts: Date.now(), dataUrl }).catch(() => { });
+        }
+    }
+    return dataUrl;
+};
+
+const archiveStreamedCoverFromCache = (cleanId, url) => {
+    if (!cleanId || !url || hasCoverInMemory(cleanId) || cover404MemoryCache.has(cleanId) || coverInFlightPromises.has(cleanId)) {
+        return;
+    }
+    const archivePromise = (async () => {
+        try {
+            // Matched CORS mode + force-cache reads the streamed response from
+            // Chromium's HTTP disk cache without a second network request.
+            const res = await fetch(url, { mode: 'cors', credentials: 'omit', cache: 'force-cache', priority: 'low' });
+            if (!res.ok) return null;
+            const blob = await res.blob();
+            return await persistCoverBlobToCache(cleanId, blob, url);
+        } catch {
+            return null;
+        }
+    })();
+    coverInFlightPromises.set(cleanId, archivePromise);
+    archivePromise.finally(() => {
+        if (coverInFlightPromises.get(cleanId) === archivePromise) {
+            coverInFlightPromises.delete(cleanId);
+        }
+    });
+    return archivePromise;
+};
+
+const coverArchiveQueue = [];
+const queuedArchiveIds = new Set();
+let coverArchiveActive = 0;
+
+const flushCoverArchiveQueue = () => {
+    // Only archive after active streamed batches finish so disk-cache reads
+    // (or uncacheable misses) never contend with live cover rendering.
+    if (coverHydrationActive > 0 || coverArchiveQueue.length === 0) return;
+    while (coverArchiveActive < 2 && coverArchiveQueue.length > 0 && coverHydrationActive === 0) {
+        const item = coverArchiveQueue.pop();
+        queuedArchiveIds.delete(item.cleanId);
+        if (hasCoverInMemory(item.cleanId) || cover404MemoryCache.has(item.cleanId)) continue;
+        coverArchiveActive++;
+        Promise.resolve(archiveStreamedCoverFromCache(item.cleanId, item.url))
+            .catch(() => null)
+            .finally(() => {
+                coverArchiveActive--;
+                if (coverArchiveQueue.length > 0 && coverHydrationActive === 0) {
+                    scheduleIdleTask(flushCoverArchiveQueue);
+                }
+            });
+    }
+};
+
+const enqueueCoverArchive = (cleanId, url) => {
+    if (!cleanId || !url || hasCoverInMemory(cleanId) || cover404MemoryCache.has(cleanId) || queuedArchiveIds.has(cleanId)) {
+        return;
+    }
+    queuedArchiveIds.add(cleanId);
+    coverArchiveQueue.push({ cleanId, url });
+    if (coverHydrationActive === 0) {
+        scheduleIdleTask(flushCoverArchiveQueue);
+    }
+};
+
+export const fetchCoverDataUrl = async (coverId, skipNegativeCheck = false) => {
     if (!coverId) return null;
-    const cleanId = String(coverId).replace(/^\/books\//, '');
-    const isNeg = await getNegativeCachedCover(cleanId);
-    if (isNeg) return null;
+    const cleanId = normalizeCoverId(coverId);
+    if (!cleanId) return null;
 
-    const url = getCoverUrl(cleanId, 'M', false);
-    if (!url) return null;
+    const inMem = getCoverFromMemory(cleanId);
+    if (inMem) return inMem;
 
-    return fetch(url)
-        .then(async (res) => {
+    if (coverInFlightPromises.has(cleanId)) {
+        return coverInFlightPromises.get(cleanId);
+    }
+
+    const taskPromise = (async () => {
+        if (!skipNegativeCheck) {
+            const isNeg = await getNegativeCachedCover(cleanId);
+            if (isNeg) return null;
+        }
+
+        if (!coverIdbSuspect) {
+            const idbCached = await raceCoverIdb(getCachedCoverDataUrl(cleanId));
+            if (idbCached) {
+                telemetryHub?.recordCacheHit?.('idb', 'cover');
+                return idbCached;
+            }
+        }
+
+        const url = getCoverUrl(cleanId, 'M', false);
+        if (!url) return null;
+
+        try {
+            const res = await fetch(url);
             if (!res.ok) {
                 if (res.status === 404) {
                     telemetryHub?.recordError?.(404, url);
@@ -539,101 +765,187 @@ export const fetchCoverDataUrl = async (coverId) => {
                 }
                 throw new Error('Cover fetch failed');
             }
-            return res.blob();
-        })
-        .then((blob) => new Promise((resolve, reject) => {
-            // Guard: 1x1 transparent placeholders from Open Library are <= 43 bytes
-            if (blob.size < 100) {
-                rememberCoverNegative(cleanId, 'empty_placeholder');
-                resolve(null);
-                return;
-            }
-            if (blob.size > 400 * 1024) { resolve(null); return; }
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = () => reject(reader.error);
-            reader.readAsDataURL(blob);
-        }))
-        .then((dataUrl) => {
-            if (dataUrl) {
-                rememberCoverInMemory(cleanId, dataUrl);
-                if (!coverIdbSuspect) localforage.setItem(`${COVER_DB_PREFIX}${cleanId}`, JSON.stringify({ ts: Date.now(), dataUrl })).catch(() => { });
-            }
-            return dataUrl;
-        })
-        .catch(() => null /* best-effort only */);
+            const blob = await res.blob();
+            return await persistCoverBlobToCache(cleanId, blob, url);
+        } catch {
+            return null;
+        }
+    })();
+
+    coverInFlightPromises.set(cleanId, taskPromise);
+    try {
+        return await taskPromise;
+    } finally {
+        if (coverInFlightPromises.get(cleanId) === taskPromise) {
+            coverInFlightPromises.delete(cleanId);
+        }
+    }
 };
 
-// Call after inserting a batch of pending cover <img class="cover-pending"
-// data-cover-id="..."> elements. Cached covers swap in near-instantly; the
-// rest load through a SLIDING WINDOW of parallel requests that always starts
-// work in reading order (left→right, top→bottom). covers.openlibrary.org is
-// a CDN and comfortably sustains the old system's 6 concurrent image fetches,
-// while strictly serial loading was ~6× slower for no benefit.
-export const COVER_SEQ_PARALLEL = 6;
+export const COVER_SEQ_PARALLEL = 16;
+const getCoverConcurrency = () => {
+    if (typeof navigator !== 'undefined' && navigator.connection && navigator.connection.saveData) return 6;
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) return 10;
+    return COVER_SEQ_PARALLEL;
+};
 export let coverSeqToken = 0;
-// Set when an IndexedDB cover read stalls past its timeout (private windows
-// and quota-pressure states can hang the driver): all further covers skip
-// the cache check entirely and load straight from the network, so one hung
-// storage backend can never freeze the whole sequence.
 export let coverIdbSuspect = false;
+const coverHydrationQueue = [];
+let coverHydrationActive = 0;
+
+export const resetCoverHydration = () => {
+    coverSeqToken++;
+    coverHydrationQueue.length = 0;
+};
+
+const replaceWithNoCover = (img) => {
+    if (!img || !img.isConnected) return;
+    img.onload = null;
+    img.onerror = null;
+    img.outerHTML = '<div class=\'no-cover\'>No Cover</div>';
+};
+
+const streamOneCover = async (img, cleanId) => {
+    if (coverInFlightPromises.has(cleanId)) {
+        const sharedUrl = await coverInFlightPromises.get(cleanId).catch(() => null);
+        if (!img.isConnected) return;
+        if (sharedUrl) {
+            img.onload = () => img.classList.add('cover-fresh');
+            img.alt = 'Cover Image';
+            img.src = sharedUrl;
+            img.classList.remove('cover-pending', 'cover-loading');
+            return;
+        }
+    }
+
+    const url = getCoverUrl(cleanId, 'M', false);
+    if (!url) {
+        replaceWithNoCover(img);
+        return;
+    }
+
+    const streamed = await new Promise((resolve) => {
+        let done = false;
+        const finish = (ok) => {
+            if (done) return;
+            done = true;
+            img.removeEventListener('load', onLoad);
+            img.removeEventListener('error', onError);
+            clearTimeout(safetyTimer);
+            resolve(ok);
+        };
+        const onLoad = () => finish(true);
+        const onError = () => finish(false);
+        const safetyTimer = setTimeout(() => finish(false), 15000);
+        img.addEventListener('load', onLoad, { once: true });
+        img.addEventListener('error', onError, { once: true });
+        img.crossOrigin = 'anonymous';
+        img.alt = 'Cover Image';
+        img.src = url;
+    });
+
+    if (streamed) {
+        if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
+            rememberCoverNegative(cleanId, 'empty_placeholder');
+            replaceWithNoCover(img);
+            return;
+        }
+        img.classList.remove('cover-pending', 'cover-loading');
+        enqueueCoverArchive(cleanId, url);
+        return;
+    }
+
+    // Fallback: inspect HTTP status via fetch() so 404 negative caching still works
+    img.removeAttribute('crossorigin');
+    const recoveredUrl = await fetchCoverDataUrl(cleanId, true);
+    if (!img.isConnected) return;
+    if (recoveredUrl) {
+        img.onload = () => img.classList.add('cover-fresh');
+        img.alt = 'Cover Image';
+        img.src = recoveredUrl;
+        img.classList.remove('cover-pending', 'cover-loading');
+    } else {
+        replaceWithNoCover(img);
+    }
+};
+
 export const loadOneCover = async (img) => {
     const rawCoverId = img.dataset.coverId;
     if (!rawCoverId || !img.isConnected) return;
     const cleanId = normalizeCoverId(rawCoverId);
     if (!cleanId) return;
 
-    // Fast check RAM / Negative cache
-    const neg = await getNegativeCachedCover(cleanId);
-    if (neg) {
-        img.onerror = null;
-        img.outerHTML = '<div class=\'no-cover\'>No Cover</div>';
-        return;
-    }
-
+    // Fast RAM check first (zero IDB round-trip on memory hit)
     let dataUrl = getCoverFromMemory(cleanId);
     if (dataUrl) {
         telemetryHub?.recordCacheHit?.('ram', 'cover');
-    } else if (!coverIdbSuspect) {
-        // Race a short timeout: a stalled IndexedDB read must never freeze
-        // the cover sequence. First timeout poisons the flag above.
-        try {
-            dataUrl = await Promise.race([
-                getCachedCoverDataUrl(cleanId),
-                new Promise(resolve => setTimeout(() => { coverIdbSuspect = true; resolve(null); }, 1200))
-            ]);
-            if (dataUrl) {
-                telemetryHub?.recordCacheHit?.('idb', 'cover');
-            }
-        } catch { dataUrl = null; }
+    } else {
+        // Negative cache check before IDB positive lookup or network stream
+        const neg = await getNegativeCachedCover(cleanId);
+        if (!img.isConnected) return;
+        if (neg) {
+            replaceWithNoCover(img);
+            return;
+        }
+
+        if (!coverIdbSuspect) {
+            try {
+                dataUrl = await raceCoverIdb(getCachedCoverDataUrl(cleanId));
+                if (dataUrl) {
+                    telemetryHub?.recordCacheHit?.('idb', 'cover');
+                }
+            } catch { dataUrl = null; }
+        }
     }
-    if (!dataUrl) dataUrl = await fetchCoverDataUrl(cleanId);
     if (!img.isConnected) return;
     if (dataUrl) {
-        // Fade in on paint, not on src-set: a slow cover would otherwise
-        // finish the animation before it decodes. Instant cached covers
-        // resolve inside the card's own mount fade, so this melts in.
         img.onload = () => img.classList.add('cover-fresh');
+        img.alt = 'Cover Image';
         img.src = dataUrl;
-        img.classList.remove('cover-pending');
-    } else {
-        img.onerror = null;
-        img.outerHTML = '<div class=\'no-cover\'>No Cover</div>';
+        img.classList.remove('cover-pending', 'cover-loading');
+        return;
     }
+
+    // Cache miss: stream progressively straight into <img>, then idle-archive from cache
+    await streamOneCover(img, cleanId);
 };
-export const hydrateCachedCovers = (container) => {
+export const hydrateCachedCovers = (container, targetImgs = null) => {
     if (!container) return;
-    const token = ++coverSeqToken;
-    const imgs = Array.from(container.querySelectorAll('img.cover-pending[data-cover-id]'));
-    let cursor = 0;
-    const worker = async () => {
-        while (token === coverSeqToken) {
-            const i = cursor++;
-            if (i >= imgs.length) return;
-            await loadOneCover(imgs[i]);
-        }
+    const imgs = Array.isArray(targetImgs)
+        ? targetImgs.filter(img => img && img.isConnected && img.classList.contains('cover-pending') && img.dataset.coverId)
+        : Array.from(container.querySelectorAll('img.cover-pending[data-cover-id]'));
+    if (imgs.length === 0) return;
+    // Mark as loading synchronously before enqueuing so subsequent chunk appends never re-pick them
+    imgs.forEach(img => {
+        img.classList.remove('cover-pending');
+        img.classList.add('cover-loading');
+        coverHydrationQueue.push(img);
+    });
+    const token = coverSeqToken;
+    const maxParallel = getCoverConcurrency();
+    const spawnWorker = () => {
+        if (coverHydrationActive >= maxParallel || coverHydrationQueue.length === 0) return;
+        coverHydrationActive++;
+        (async () => {
+            try {
+                while (token === coverSeqToken && coverHydrationQueue.length > 0) {
+                    const img = coverHydrationQueue.shift();
+                    if (!img || !img.isConnected) continue;
+                    await loadOneCover(img);
+                }
+            } finally {
+                coverHydrationActive--;
+                if (token === coverSeqToken && coverHydrationQueue.length > 0) {
+                    spawnWorker();
+                } else if (coverHydrationActive === 0 && coverArchiveQueue.length > 0) {
+                    scheduleIdleTask(flushCoverArchiveQueue);
+                }
+            }
+        })();
     };
-    for (let w = 0; w < COVER_SEQ_PARALLEL && w < imgs.length; w++) worker();
+    while (coverHydrationActive < maxParallel && coverHydrationQueue.length > 0) {
+        spawnWorker();
+    }
 };
 
 // Persistent Synopsis Cache (IndexedDB + RAM)
@@ -647,9 +959,12 @@ export const getCachedSynopsis = async (workKey) => {
         if (val && val !== 'No synopsis available for this work.') return val;
     }
     try {
-        const raw = await localforage.getItem(`${SYNOPSIS_DB_PREFIX}${workKey}`);
+        const raw = await Promise.race([
+            localforage.getItem(`${SYNOPSIS_DB_PREFIX}${workKey}`).catch(() => null),
+            new Promise(resolve => setTimeout(() => resolve(null), 1200))
+        ]);
         if (!raw) return null;
-        const parsed = JSON.parse(raw);
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
         if (!parsed || Date.now() - parsed.ts > SYNOPSIS_CACHE_TTL) return null;
         if (parsed.desc && parsed.desc !== 'No synopsis available for this work.') {
             descriptionCache.set(workKey, parsed.desc);
@@ -714,9 +1029,15 @@ export const cleanSynopsis = (rawDesc) => {
     }
 
     let text = rawDesc.trim();
+    const tokens = [];
+    const stashToken = (html) => {
+        const idx = tokens.length;
+        tokens.push(html);
+        return `\u0000SYN_TOK_${idx}\u0000`;
+    };
+    const isSafeHttpUrl = (url) => /^https?:\/\//i.test(String(url || '').trim());
 
     // 1. Strip Promotional / Spam Download Links & SEO spam tags
-    // e.g. **A Court of Silver Flames pdf[ https://... ](...)**
     text = text.replace(/(?:\*{0,2})[^*\n]*?\b(?:pdf|epub|download|free ebook|ebook)\b[^*\n]*?\[\s*https?:\/\/[^\]]+\]\([^\)]+\)\s*(?:\*{0,2})/gi, '');
 
     const isSpamLink = (anchor, url) => {
@@ -737,42 +1058,19 @@ export const cleanSynopsis = (rawDesc) => {
         const title = match[3] ? match[3].trim() : '';
         refMap.set(id, { url, title });
     }
-    // Remove reference link definition lines
     text = text.replace(refDefRegex, '').trim();
-    // Also remove any dangling reference lines (e.g. ^: https://...)
     text = text.replace(/^[ \t]*:\s*https?:\/\/\S+[ \t]*$/gim, '').trim();
 
-    // Replace reference links: [anchor][id], [anchor][], or [id] where id exists in refMap
-    text = text.replace(/\[([^\]]+)\](?:\[([^\]]*)\])?/g, (fullMatch, p1, p2) => {
-        const targetId = (p2 !== undefined && p2 !== '' ? p2 : p1).trim().toLowerCase();
-        if (refMap.has(targetId)) {
-            const { url } = refMap.get(targetId);
-            if (isSpamLink(p1, url)) return '';
-            // If p1 is a pure digit citation [1] without anchor text, strip it
-            if (/^\d+$/.test(p1.trim()) && (!p2 || p2 === '')) return '';
-            return `<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" class="synopsis-link">${escapeHTML(p1)}</a>`;
-        }
-        return fullMatch;
-    });
-
-    // 3. Comprehensive Inline Markdown Link Filter: [anchor](url)
-    text = text.replace(/(?:\*{0,2})\[([^\]]*)\]\((https?:\/\/[^\)]+)\)(?:\*{0,2})/gi, (match, anchor, url) => {
-        if (isSpamLink(anchor, url)) {
-            return ''; // Strip spam link completely
-        }
-        return `<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" class="synopsis-link">${escapeHTML(anchor)}</a>`;
-    });
-
-    // 4. Strip Wikipedia / Academic Citation Markers (e.g. [1], [citation needed], [note 2])
-    text = text.replace(/\[\s*(?:\d+|citation needed|note \d+|when\?|who\?|source\?)\s*\]/gi, '');
-
-    // 5. Extract Source Citations into Footer Attribution Badge
+    // 3. Extract Source Citations into Footer Attribution Badge before general link tokenization
     let sourceAttribution = '';
-    const sourceRegex = /(?:[-–—]\s*)?(?:\(|\[)?\s*(?:Source|From Wikipedia|From Goodreads|Wikipedia)\s*:\s*(?:\[([^\]]+)\]\((https?:\/\/[^\)]+)\)|<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>|([^)\n\]]+))(?:\)|\])?/i;
+    const sourceRegex = /(?:[-–—]\s*)?(?:\(|\[)?\s*(?:Source|From Wikipedia|From Goodreads|Wikipedia)\s*:\s*(?:\[([^\]]+)\]\((https?:\/\/[^\)]+)\)|<a\s+(?:[^>]*?\s+)?href=(?:"([^"]*)"|'([^']*)')[^>]*>([\s\S]*?)<\/a>|([^)\n\]]+))(?:\)|\])?/i;
     const sourceMatch = text.match(sourceRegex);
     if (sourceMatch) {
-        const sourceName = (sourceMatch[1] || sourceMatch[4] || sourceMatch[5] || 'Source').trim();
-        const sourceUrl = sourceMatch[2] || sourceMatch[3] || (sourceName.toLowerCase().includes('wikipedia') ? 'https://wikipedia.org' : null);
+        const sourceName = (sourceMatch[1] || sourceMatch[5] || sourceMatch[6] || 'Source').replace(/<[^>]*>/g, '').trim() || 'Source';
+        const rawUrl = sourceMatch[2] || sourceMatch[3] || sourceMatch[4] || '';
+        const sourceUrl = isSafeHttpUrl(rawUrl)
+            ? rawUrl.trim()
+            : (sourceName.toLowerCase().includes('wikipedia') ? 'https://wikipedia.org' : null);
 
         sourceAttribution = sourceUrl
             ? `<div class="synopsis-source-badge">Source: <a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHTML(sourceName)} ↗</a></div>`
@@ -780,58 +1078,80 @@ export const cleanSynopsis = (rawDesc) => {
 
         text = text.replace(sourceMatch[0], '').trim();
     } else {
-        const endWikiRegex = /(?:[-–—]\s*)?<a\s+href="([^"]*)"[^>]*>(Wikipedia|Goodreads)<\/a>\s*$/i;
+        const endWikiRegex = /(?:[-–—]\s*)?<a\s+(?:[^>]*?\s+)?href=(?:"([^"]*)"|'([^']*)')[^>]*>(Wikipedia|Goodreads)<\/a>\s*$/i;
         const endWikiMatch = text.match(endWikiRegex);
         if (endWikiMatch) {
-            const sourceUrl = endWikiMatch[1];
-            const sourceName = endWikiMatch[2];
-            sourceAttribution = `<div class="synopsis-source-badge">Source: <a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHTML(sourceName)} ↗</a></div>`;
+            const rawUrl = endWikiMatch[1] || endWikiMatch[2] || '';
+            const sourceName = endWikiMatch[3];
+            sourceAttribution = isSafeHttpUrl(rawUrl)
+                ? `<div class="synopsis-source-badge">Source: <a href="${escapeHTML(rawUrl.trim())}" target="_blank" rel="noopener noreferrer">${escapeHTML(sourceName)} ↗</a></div>`
+                : `<div class="synopsis-source-badge">Source: ${escapeHTML(sourceName)}</div>`;
             text = text.replace(endWikiRegex, '').trim();
         }
     }
 
-    // 6. Handle Scene Breaks / Horizontal Decorative Dividers
-    // e.g. *** or * * * or --- or ___
-    text = text.replace(/^[ \t]*(?:\*\s*){3,}$/gm, '<hr class="synopsis-divider">');
-    text = text.replace(/^[ \t]*(?:-\s*){3,}$/gm, '<hr class="synopsis-divider">');
-    text = text.replace(/^[ \t]*(?:_\s*){3,}$/gm, '<hr class="synopsis-divider">');
-
-    // 7. Safe HTML sanitization for pre-existing raw HTML
-    text = text.replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/gi, (match, url, linkText) => {
-        if (/^(javascript:|data:)/i.test(url)) return escapeHTML(linkText);
-        if (isSpamLink(linkText, url)) return '';
-        return `<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" class="synopsis-link">${escapeHTML(linkText)}</a>`;
+    // Replace reference links into safe stashed tokens
+    text = text.replace(/\[([^\]]+)\](?:\[([^\]]*)\])?/g, (fullMatch, p1, p2) => {
+        const targetId = (p2 !== undefined && p2 !== '' ? p2 : p1).trim().toLowerCase();
+        if (refMap.has(targetId)) {
+            const { url } = refMap.get(targetId);
+            if (!isSafeHttpUrl(url) || isSpamLink(p1, url)) return '';
+            if (/^\d+$/.test(p1.trim()) && (!p2 || p2 === '')) return '';
+            return stashToken(`<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" class="synopsis-link">${escapeHTML(p1)}</a>`);
+        }
+        return fullMatch;
     });
-    text = text.replace(/<\/?(?:div|span|font|style|script|iframe|object|embed)[^>]*>/gi, '');
 
-    // 8. Markdown Typographic Formatting (CommonMark-compliant emphasis)
-    // Bold + Italic: ***text*** or ___text___
+    // 4. Comprehensive Inline Markdown Link Filter: [anchor](url)
+    text = text.replace(/(?:\*{0,2})\[([^\]]*)\]\((https?:\/\/[^\)]+)\)(?:\*{0,2})/gi, (m, anchor, url) => {
+        if (!isSafeHttpUrl(url) || isSpamLink(anchor, url)) return '';
+        return stashToken(`<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" class="synopsis-link">${escapeHTML(anchor)}</a>`);
+    });
+
+    // 5. Strip Wikipedia / Academic Citation Markers (e.g. [1], [citation needed], [note 2])
+    text = text.replace(/\[\s*(?:\d+|citation needed|note \d+|when\?|who\?|source\?)\s*\]/gi, '');
+
+    // 6. Tokenize pre-existing safe <a> tags (single- or double-quoted) and reject unsafe schemes
+    text = text.replace(/<a\s+(?:[^>]*?\s+)?href=(?:"([^"]*)"|'([^']*)')[^>]*>([\s\S]*?)<\/a>/gi, (m, dblUrl, sglUrl, linkText) => {
+        const rawUrl = (dblUrl !== undefined ? dblUrl : sglUrl || '').trim();
+        const plainText = String(linkText || '').replace(/<[^>]*>/g, '');
+        if (!isSafeHttpUrl(rawUrl)) return plainText;
+        if (isSpamLink(plainText, rawUrl)) return '';
+        return stashToken(`<a href="${escapeHTML(rawUrl)}" target="_blank" rel="noopener noreferrer" class="synopsis-link">${escapeHTML(plainText)}</a>`);
+    });
+
+    // Strip harmless formatting wrappers and convert explicit <br> to newlines before escaping
+    text = text.replace(/<br\s*\/?>/gi, '\n');
+    text = text.replace(/<\/?(?:div|span|font|p)[^>]*>/gi, '');
+
+    // 7. Handle Scene Breaks / Horizontal Decorative Dividers
+    text = text.replace(/^[ \t]*(?:\*\s*){3,}$/gm, () => stashToken('<hr class="synopsis-divider">'));
+    text = text.replace(/^[ \t]*(?:-\s*){3,}$/gm, () => stashToken('<hr class="synopsis-divider">'));
+    text = text.replace(/^[ \t]*(?:_\s*){3,}$/gm, () => stashToken('<hr class="synopsis-divider">'));
+
+    // 8. Escape ALL remaining raw HTML so no <img>, <svg>, <details>, <script>, etc. can execute
+    text = escapeHTML(text);
+
+    // 9. Markdown Typographic Formatting (on already-escaped text; '*' and '_' are preserved by escapeHTML)
     text = text.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
     text = text.replace(/___([\s\S]+?)___/g, '<strong><em>$1</em></strong>');
-
-    // Bold: **text** (allowing single * inside for nested italics) or __text__
     text = text.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
     text = text.replace(/__([\s\S]+?)__/g, '<strong>$1</strong>');
-
-    // Italic: *text* (word-boundary safe, handles *word*, *multiple words*, *decoration*)
     text = text.replace(/(?<!\*)\*([^*\n\s](?:[^*\n]*?[^*\n\s])?)\*(?!\*)/g, '<em>$1</em>');
-    // Italic single character or standalone word: e.g. *x*
     text = text.replace(/(?<!\*)\*([^*\n\s])\*(?!\*)/g, '<em>$1</em>');
-    // Italic underscore: _text_
     text = text.replace(/(?<![a-zA-Z0-9_])_([^_\n\s](?:[^_\n]*?[^_\n\s])?)_(?![a-zA-Z0-9_])/g, '<em>$1</em>');
-
-    // Headings: # Heading -> <strong>Heading</strong>
     text = text.replace(/^#+\s*(.*?)$/gm, '<strong>$1</strong>');
 
-    // 9. Cleanup Stray / Hanging Formatting Asterisks
+    // 10. Cleanup Stray / Hanging Formatting Asterisks
     text = text.replace(/(?:^\s*\*{1,2}|\*{1,2}\s*$)/gm, '');
 
-    // 10. Semantic Paragraphs & Line Breaks
+    // 11. Semantic Paragraphs & Line Breaks, then restore stashed safe HTML tokens
+    const restoreTokens = (str) => str.replace(/\u0000SYN_TOK_(\d+)\u0000/g, (_, i) => tokens[Number(i)] || '');
     const paragraphs = text
         .split(/\r?\n\s*\r?\n/)
         .map(p => p.trim())
         .filter(p => p.length > 0)
-        .map(p => `<p class="synopsis-paragraph">${p.replace(/\r?\n/g, '<br>')}</p>`);
+        .map(p => `<p class="synopsis-paragraph">${restoreTokens(p.replace(/\r?\n/g, '<br>'))}</p>`);
 
-    return (paragraphs.join('') || `<p class="synopsis-paragraph">${escapeHTML(text)}</p>`) + sourceAttribution;
+    return (paragraphs.join('') || `<p class="synopsis-paragraph">${restoreTokens(text)}</p>`) + sourceAttribution;
 };

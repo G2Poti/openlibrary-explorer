@@ -84,18 +84,33 @@ export const apiTelemetry = (() => {
     }
 
     let persistTimer = null;
-    const persistStats = () => {
-        if (persistTimer) clearTimeout(persistTimer);
-        persistTimer = setTimeout(() => {
-            try {
-                safeStorage.setItem('ole_telemetry_stats', JSON.stringify({ 
-                    stats, 
-                    recentErrors, 
-                    searchDurations: searchDurations.slice(-20) 
-                }));
-            } catch { }
-        }, 200);
+    const flushPersistStats = () => {
+        if (persistTimer) {
+            clearTimeout(persistTimer);
+            persistTimer = null;
+        }
+        try {
+            safeStorage.setItem('ole_telemetry_stats', JSON.stringify({
+                stats,
+                recentErrors,
+                searchDurations: searchDurations.slice(-20)
+            }));
+        } catch { }
     };
+    const persistStats = () => {
+        if (persistTimer) return;
+        persistTimer = setTimeout(flushPersistStats, 3000);
+    };
+    if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && persistTimer) flushPersistStats();
+        });
+    }
+    if (typeof window !== 'undefined') {
+        window.addEventListener('pagehide', () => {
+            if (persistTimer) flushPersistStats();
+        });
+    }
 
     // Queue-wait samples carry timestamps so the HUD average reflects CURRENT
     // conditions: without time-pruning, a long translation backlog pins the
@@ -344,12 +359,36 @@ const OPTIMIZED_ORIGIN_DELAY_MS = 334;  // Strict <= 3.0 req/s Open Library limi
 
 export const fetchOpenLibrary = (() => {
     const apiResponseCache = new Map();
+    const inFlightGetRequests = new Map();
     const API_CACHE_MAX = 50;
+    const API_CACHE_MAX_BYTES = 8 * 1024 * 1024;
+    const API_CACHE_ENTRY_MAX_BYTES = 512 * 1024;
     const API_CACHE_TTL = 5 * 60 * 1000;
+    let apiCacheTotalBytes = 0;
+
+    const setApiResponseCache = (cacheKey, text) => {
+        const byteSize = text.length * 2;
+        if (byteSize > API_CACHE_ENTRY_MAX_BYTES) return;
+        const existing = apiResponseCache.get(cacheKey);
+        if (existing) {
+            apiCacheTotalBytes -= existing.bytes;
+            apiResponseCache.delete(cacheKey);
+        }
+        apiResponseCache.set(cacheKey, { text, bytes: byteSize, time: Date.now() });
+        apiCacheTotalBytes += byteSize;
+        while (apiResponseCache.size > API_CACHE_MAX || apiCacheTotalBytes > API_CACHE_MAX_BYTES) {
+            const oldestKey = apiResponseCache.keys().next().value;
+            if (!oldestKey) break;
+            const oldestVal = apiResponseCache.get(oldestKey);
+            apiCacheTotalBytes -= oldestVal ? oldestVal.bytes : 0;
+            apiResponseCache.delete(oldestKey);
+        }
+    };
 
     let activeConnections = 0;
     let unconfirmedInFlight = 0;
     let lastOriginStartTime = 0;
+    let originPacingUntil = 0;
     let originPacingActive = false;
     let lastRequestStartTime = 0;
     const queue = [];
@@ -411,8 +450,11 @@ export const fetchOpenLibrary = (() => {
                     break; // Sockets or unconfirmed budget saturated
                 }
 
-                // Enforce 334ms start spacing strictly in direct mode, or after an origin miss in proxy mode
-                if (!isProxy || originPacingActive) {
+                // Enforce 334ms start spacing strictly in direct mode, or while origin pacing is active in proxy mode.
+                if (originPacingActive && Date.now() >= originPacingUntil && queue.length === 0) {
+                    originPacingActive = false;
+                }
+                if (!isProxy || (originPacingActive && Date.now() < originPacingUntil)) {
                     const now = Date.now();
                     const timeSinceLast = now - lastOriginStartTime;
                     if (timeSinceLast < OPTIMIZED_ORIGIN_DELAY_MS) {
@@ -424,9 +466,8 @@ export const fetchOpenLibrary = (() => {
                         }
                         break;
                     }
-                    lastOriginStartTime = Date.now();
-                    originPacingActive = false;
                 }
+                lastOriginStartTime = Date.now();
 
                 activeConnections++;
                 unconfirmedInFlight++;
@@ -531,15 +572,21 @@ export const fetchOpenLibrary = (() => {
         }, timeoutMs);
 
         const fetchOptions = { ...entry.options };
+        delete fetchOptions.passType;
+        delete fetchOptions.priority;
+        delete fetchOptions.timeoutMs;
+        delete fetchOptions.retryCount;
+        let callerAbortHandler = null;
         if (entry.options && entry.options.signal) {
             if (entry.options.signal.aborted) {
                 clearTimeout(fetchTimer);
                 timeoutController.abort();
             } else {
-                entry.options.signal.addEventListener('abort', () => {
+                callerAbortHandler = () => {
                     clearTimeout(fetchTimer);
                     try { timeoutController.abort(); } catch { }
-                }, { once: true });
+                };
+                entry.options.signal.addEventListener('abort', callerAbortHandler, { once: true });
             }
         }
         fetchOptions.signal = timeoutController.signal;
@@ -547,6 +594,9 @@ export const fetchOpenLibrary = (() => {
         fetch(finalUrl, fetchOptions)
             .then(async res => {
                 clearTimeout(fetchTimer);
+                if (callerAbortHandler && entry.options && entry.options.signal) {
+                    entry.options.signal.removeEventListener('abort', callerAbortHandler);
+                }
                 isRecorded = true;
                 const durationMs = Date.now() - reqStartTime;
 
@@ -579,9 +629,12 @@ export const fetchOpenLibrary = (() => {
                 // Decrement unconfirmed in-flight now that headers are read!
                 releaseUnconfirmed();
 
-                if (!isEdgeHit) {
-                    lastOriginStartTime = Date.now();
+                if (isEdgeHit) {
+                    originPacingActive = false;
+                    originPacingUntil = 0;
+                } else {
                     originPacingActive = true;
+                    originPacingUntil = Date.now() + 2000;
                 }
 
                 if (res.status === 429 || res.status === 403) {
@@ -627,21 +680,23 @@ export const fetchOpenLibrary = (() => {
                 }
 
                 if (isGet && res.ok) {
-                    res.clone().text().then(text => {
-                        try {
-                            JSON.parse(text);
-                            apiResponseCache.set(cacheKey, { text, time: Date.now() });
-                            if (apiResponseCache.size > API_CACHE_MAX) {
-                                const oldest = apiResponseCache.keys().next().value;
-                                apiResponseCache.delete(oldest);
+                    const looksJson = contentType.includes('json') || contentType === '';
+                    if (looksJson) {
+                        res.clone().text().then(text => {
+                            const trimmed = text.trimStart();
+                            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                                setApiResponseCache(cacheKey, text);
                             }
-                        } catch { }
-                    });
+                        }).catch(() => { });
+                    }
                 }
                 entry.resolve(res);
             })
             .catch(err => {
                 clearTimeout(fetchTimer);
+                if (callerAbortHandler && entry.options && entry.options.signal) {
+                    entry.options.signal.removeEventListener('abort', callerAbortHandler);
+                }
                 releaseUnconfirmed();
                 if (!isRecorded) {
                     const durationMs = Date.now() - reqStartTime;
@@ -665,12 +720,15 @@ export const fetchOpenLibrary = (() => {
         if (isGet && apiResponseCache.has(cacheKey)) {
             const cached = apiResponseCache.get(cacheKey);
             if (Date.now() - cached.time < API_CACHE_TTL) {
+                apiResponseCache.delete(cacheKey);
+                apiResponseCache.set(cacheKey, cached);
                 apiTelemetry.recordCacheHit('ram', 'api');
                 return Promise.resolve(new Response(cached.text, {
                     status: 200,
                     headers: { 'Content-Type': 'application/json' }
                 }));
             }
+            apiCacheTotalBytes -= cached.bytes || 0;
             apiResponseCache.delete(cacheKey);
         }
 
@@ -682,8 +740,35 @@ export const fetchOpenLibrary = (() => {
             return Promise.reject(new Error("OpenLibrary API is in a cooldown period."));
         }
 
-        return new Promise((resolve, reject) => {
-            const entry = { url, options, resolve, reject, enqueuedAt: Date.now() };
+        // 3. Coalesce concurrent identical GET requests (when caller does not require an isolated abortable stream,
+        // or return a cloned Response while keeping caller signal isolated).
+        if (isGet && inFlightGetRequests.has(cacheKey)) {
+            const sharedPromise = inFlightGetRequests.get(cacheKey);
+            return new Promise((resolve, reject) => {
+                if (options.signal) {
+                    if (options.signal.aborted) {
+                        reject(new DOMException('The operation was aborted.', 'AbortError'));
+                        return;
+                    }
+                    options.signal.addEventListener('abort', () => {
+                        reject(new DOMException('The operation was aborted.', 'AbortError'));
+                    }, { once: true });
+                }
+                sharedPromise.then(
+                    (res) => resolve(res.clone()),
+                    (err) => reject(err)
+                );
+            });
+        }
+
+        const networkPromise = new Promise((resolve, reject) => {
+            const networkOptions = isGet ? { ...options } : options;
+            // For coalesced GETs, prevent a single waiter's signal from aborting other waiters;
+            // individual callers still reject immediately on their own AbortSignal below.
+            if (isGet && networkOptions.signal) {
+                delete networkOptions.signal;
+            }
+            const entry = { url, options: networkOptions, resolve, reject, enqueuedAt: Date.now() };
             if (options && options.priority === 'high') {
                 queue.unshift(entry);
             } else {
@@ -691,6 +776,33 @@ export const fetchOpenLibrary = (() => {
             }
             processQueue();
         });
+
+        if (isGet) {
+            inFlightGetRequests.set(cacheKey, networkPromise);
+            networkPromise.finally(() => {
+                if (inFlightGetRequests.get(cacheKey) === networkPromise) {
+                    inFlightGetRequests.delete(cacheKey);
+                }
+            }).catch(() => { });
+
+            return new Promise((resolve, reject) => {
+                if (options.signal) {
+                    if (options.signal.aborted) {
+                        reject(new DOMException('The operation was aborted.', 'AbortError'));
+                        return;
+                    }
+                    options.signal.addEventListener('abort', () => {
+                        reject(new DOMException('The operation was aborted.', 'AbortError'));
+                    }, { once: true });
+                }
+                networkPromise.then(
+                    (res) => resolve(res.clone()),
+                    (err) => reject(err)
+                );
+            });
+        }
+
+        return networkPromise;
     };
 
     queuedFetch.isQueueIdle = () => queue.length === 0 && activeConnections === 0;
@@ -717,18 +829,39 @@ export const fetchOpenLibrary = (() => {
     return queuedFetch;
 })();
 
+let inFlightDiscoverBundlePromise = null;
 export const fetchDiscoverBundleFromProxy = async () => {
     if (!customProxyUrl) return null;
+    if (inFlightDiscoverBundlePromise) return inFlightDiscoverBundlePromise;
     const bundleUrl = `${customProxyUrl.replace(/\/+$/, '')}/api/discover-bundle`;
-    try {
-        const res = await fetch(bundleUrl);
-        if (!res.ok) return null;
-        const data = await res.json();
-        if (data && Array.isArray(data.trending) && data.trending.length > 0 && data.genres && typeof data.genres === 'object') {
-            return data;
+    inFlightDiscoverBundlePromise = (async () => {
+        const start = Date.now();
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+        apiTelemetry.recordRequestStart(false, 0);
+        try {
+            const res = await fetch(bundleUrl, { signal: controller.signal });
+            clearTimeout(timer);
+            const cc = (res.headers?.get?.('cache-control') || '').toLowerCase();
+            const cfCache = (res.headers?.get?.('cf-cache-status') || '').toUpperCase();
+            const isEdgeHit = cc.includes('edge-hit') || cfCache.includes('HIT') || cfCache.includes('STALE') || (Date.now() - start < 90 && res.status === 200);
+            if (isEdgeHit) apiTelemetry.recordCacheHit('edge', 'api');
+            else apiTelemetry.recordOriginRequest();
+            apiTelemetry.recordRequestComplete(Date.now() - start, res.status, 'discovery', false, '', bundleUrl, isEdgeHit);
+            if (!res.ok) return null;
+            const data = await res.json();
+            if (data && Array.isArray(data.trending) && data.trending.length > 0 && data.genres && typeof data.genres === 'object') {
+                return data;
+            }
+        } catch (e) {
+            clearTimeout(timer);
+            const isAborted = !!(e && e.name === 'AbortError');
+            apiTelemetry.recordRequestComplete(Date.now() - start, 0, 'discovery', isAborted, e ? e.message : 'Bundle fetch failed', bundleUrl, false);
+            console.warn('Failed to fetch bundle from proxy:', e);
+        } finally {
+            inFlightDiscoverBundlePromise = null;
         }
-    } catch (e) {
-        console.warn('Failed to fetch bundle from proxy:', e);
-    }
-    return null;
+        return null;
+    })();
+    return inFlightDiscoverBundlePromise;
 };

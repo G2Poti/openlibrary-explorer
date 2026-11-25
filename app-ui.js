@@ -23,7 +23,7 @@ import {
     fetchWorkEditions, pickBestEdition, isValidEditionForWork, isValidSubtitle, isDuplicateTitle,
     resolvedTitlesInActivePass, activeSort, activeMinStar, activeMinRCount, currentTotalHidden,
     modifyTagFilter, showStageToast, createLibraryDoc, updateLibraryBadge, normalizeForCompare,
-    lastFetchLimit
+    lastFetchLimit, refreshBookTitleToken
 } from './book-features.js';
 import {
     translationCoverCache, getCoverUrl, getCoverFromMemory, isCleanLibrarySubjectsEnabled,
@@ -31,7 +31,8 @@ import {
     getCachedSynopsis, cacheSynopsis, getWorkApiUrl, translationCache, translationPromiseCache,
     setTranslationCache, saveTranslationCache, translationGenerationToken, isSynopsisCleanupEnabled,
     cleanSynopsis, rememberCoverInMemory, rememberCoverNegative, cacheCoverInBackground,
-    isLibraryWork, safeStorage, syncLibraryKeySet, translationQueue
+    isLibraryWork, safeStorage, syncLibraryKeySet, translationQueue, fetchCoverDataUrl,
+    setStorageProxyUrl, resetCoverHydration
 } from './storage-cache.js';
 import { fetchOpenLibrary, apiTelemetry, isApiBlocked } from './network-engine.js';
 export const getGridRowCapacity = (cardWidth) => {
@@ -169,12 +170,6 @@ export const refreshGridCardTags = () => {
         try {
             const subjects = JSON.parse(subjectsJson);
             el.innerHTML = packTagsIntoTwoRows(subjects, currentCapacity);
-            el.querySelectorAll('.tag-overflow').forEach(badge => {
-                badge.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    openTagsPopup(badge);
-                });
-            });
         } catch { }
     });
 };
@@ -266,9 +261,8 @@ export const buildCard = (b, isEditionsSort, filterLangAA) => {
         // Memory hit: instant, no sequencer needed.
         cover = `<img src="${cachedCover}" data-cover-id="${coverId}" class="book-cover" alt="Cover Image" loading="lazy" decoding="async" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'no-cover\\'>No Cover</div>';">`;
     } else if (coverId) {
-        // No src yet — the ordered loader (hydrateCachedCovers) assigns
-        // network covers strictly in reading order, one at a time.
-        cover = `<img class="book-cover cover-pending" data-cover-id="${coverId}" alt="Cover Image" decoding="async">`;
+        // No src yet — keep alt empty until assigned so Chromium never shows a broken-image icon while queued.
+        cover = `<img class="book-cover cover-pending" data-cover-id="${coverId}" alt="" decoding="async">`;
     } else {
         cover = `<div class="no-cover">No Cover</div>`;
     }
@@ -281,13 +275,21 @@ export const buildCard = (b, isEditionsSort, filterLangAA) => {
     const ratingDisplay = b.ratings_average ? `★ ${parseFloat(b.ratings_average).toFixed(1)} ${ratingCount}` : 'No rating';
     const editionBadge = (isEditionsSort && b.edition_count) ? `<span class="edition-badge">${b.edition_count} Editions</span>` : '';
     const isCleanSubjects = (currentViewMode === 'library' && isCleanLibrarySubjectsEnabled());
-    const normalizedSubjects = cleanSubjects(b.subject);
+    const normalizedSubjects = Array.isArray(b.subject) ? b.subject : cleanSubjects(b.subject);
     const displayedSubjects = isCleanSubjects
         ? normalizedSubjects.map(toCleanSubjectTitleCase)
         : normalizedSubjects;
     const subjectCount = displayedSubjects.length;
+    const escapedSubjectsJson = subjectCount > 0 ? escapeHTML(JSON.stringify(displayedSubjects)) : '';
     const tagsCompactHtml = subjectCount > 0
-        ? `<span class="tags-compact-badge" data-subjects="${escapeHTML(JSON.stringify(displayedSubjects))}" title="Tap to see all tags">${subjectCount} tag${subjectCount === 1 ? '' : 's'}</span>`
+        ? `<span class="tags-compact-badge" data-subjects="${escapedSubjectsJson}" title="Tap to see all tags">${subjectCount} tag${subjectCount === 1 ? '' : 's'}</span>`
+        : '';
+    const isListViewActive = !!(DOM.grid && DOM.grid.classList.contains('list-view'));
+    const gridTagsHtml = (!isListViewActive && subjectCount > 0)
+        ? packTagsIntoTwoRows(displayedSubjects, (window.innerWidth > 768) ? getGridRowCapacity(DOM.grid ? getGridCardWidth(DOM.grid) : 380) : 44)
+        : '';
+    const listTagsHtml = (isListViewActive && subjectCount > 0)
+        ? packTagsIntoOneRow(displayedSubjects, 80)
         : '';
     const isInLibrary = isLibraryWork(b.key);
     let bookLangAA = 'en';
@@ -311,8 +313,8 @@ export const buildCard = (b, isEditionsSort, filterLangAA) => {
                 <div class="action-buttons">
                     <button class="library-btn ${isInLibrary ? 'in-library' : ''}" title="${isInLibrary ? 'Remove from Library' : 'Add to Library'}">${heartSVG}</button>
                 </div>
-                <div class="tags-list grid-tags" data-subjects="${escapeHTML(JSON.stringify(displayedSubjects))}">${packTagsIntoTwoRows(displayedSubjects, (window.innerWidth > 768 && (!DOM.grid || !DOM.grid.classList.contains('list-view'))) ? getGridRowCapacity(DOM.grid ? getGridCardWidth(DOM.grid) : 380) : 44)}</div>
-                <div class="tags-list list-tags">${packTagsIntoOneRow(displayedSubjects, 80)}</div>
+                <div class="tags-list grid-tags" data-subjects="${escapedSubjectsJson}">${gridTagsHtml}</div>
+                <div class="tags-list list-tags" data-subjects="${escapedSubjectsJson}">${listTagsHtml}</div>
                 ${tagsCompactHtml}
             </div>
         </div>
@@ -324,18 +326,13 @@ export const buildCard = (b, isEditionsSort, filterLangAA) => {
             <strong>${ratingDisplay}</strong>
         </div>
     `;
-    card.querySelectorAll('.tags-compact-badge, .tag-overflow').forEach(el => {
-        if (el.dataset.subjects) {
-            el.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openTagsPopup(el);
-            });
-        }
-    });
     return card;
 };
 export const injectSkeletonScreen = (isLoadMore = false, count = null) => {
-    if (!isLoadMore) DOM.grid.innerHTML = ''; // Only wipe the grid on a fresh search
+    if (!isLoadMore) {
+        resetCoverHydration();
+        DOM.grid.innerHTML = ''; // Only wipe the grid on a fresh search
+    }
     DOM.status.style.display = 'none';
     DOM.grid.style.display = 'grid';
     const defaultCount = DOM.grid.classList.contains('list-view') ? 10 : 8;
@@ -424,7 +421,14 @@ export const prefetchTrendingSynopses = async (books) => {
     }, 3000);
 };
 export let currentDrawerWorkKey = null;
+let drawerAbortController = null;
 export const openDetailsDrawer = async (b, finalAALang) => {
+    if (drawerAbortController) {
+        drawerAbortController.abort();
+        drawerAbortController = null;
+    }
+    const localDrawerController = new AbortController();
+    drawerAbortController = localDrawerController;
     // Populate simple local metadata immediately
     DOM.detailsTitle.textContent = b.title;
     const author = b.author_name ? b.author_name[0] : 'Unknown Author';
@@ -575,29 +579,20 @@ export const openDetailsDrawer = async (b, finalAALang) => {
         return;
     }
     const persistedSynopsis = await getCachedSynopsis(b.key);
+    if (currentDrawerWorkKey !== b.key) return;
     if (persistedSynopsis) {
         renderSynopsis(persistedSynopsis);
         return;
     }
-    // Fetch details in parallel: Work details (for description) & Edition details (for original title restoration if enabled)
+    // Fetch Work details (for description) at high priority
     const workUrl = getWorkApiUrl(b.key);
-    // Drawer requests are user-initiated — they jump the queue AHEAD of
-    // background traffic (title-translation lookups flood the shared,
-    // throttled request queue in the first ~20-30s after a query, which used
-    // to make synopses crawl).
-    let fetchPromises = [workUrl ? fetchOpenLibrary(workUrl, { priority: 'high', passType: 'work_detail' }).then(r => r.ok ? r.json() : null) : Promise.resolve(null)];
     const isTransEnabled = DOM.translateToggle && DOM.translateToggle.checked;
-    // Explicit language filter only: with no filter there is nothing to
-    // translate towards, so the edition lookup is skipped entirely.
     const targetLang = getExplicitTargetLang();
-    if (isTransEnabled && targetLang && b.cover_edition_key) {
-        fetchPromises.push(fetchOpenLibrary(`https://openlibrary.org/books/${b.cover_edition_key}.json`, { priority: 'high', passType: 'work_detail' }).then(r => r.ok ? r.json() : null));
-    }
     try {
-        const results = await Promise.all(fetchPromises);
+        const workData = workUrl
+            ? await fetchOpenLibrary(workUrl, { priority: 'high', passType: 'work_detail', signal: localDrawerController.signal }).then(r => r.ok ? r.json() : null)
+            : null;
         if (currentDrawerWorkKey !== b.key) return;
-        const workData = results[0];
-        const editionData = results[1]; // Will be undefined if translation is disabled
         const cacheKey = `${b.key}_${targetLang}`;
         let canonicalTitle = (workData && workData.title) ? workData.title : b.title;
         if (isTransEnabled && targetLang) {
@@ -606,7 +601,8 @@ export const openDetailsDrawer = async (b, finalAALang) => {
                 canonicalTitle = translationCache.get(cacheKey);
             } else {
                 try {
-                    const entries = await fetchWorkEditions(b.key, targetLang, b.edition_count);
+                    const entries = await fetchWorkEditions(b.key, targetLang, b.edition_count, localDrawerController.signal, 'high');
+                    if (currentDrawerWorkKey !== b.key) return;
                     if (Array.isArray(entries)) {
                         const validEditions = entries.filter(entry => {
                             if (!entry.languages) return false;
@@ -629,17 +625,18 @@ export const openDetailsDrawer = async (b, finalAALang) => {
                                     updateCardCoverInGrid(b.key, matchingEdition.localizedCoverId, matchingEdition.key);
                                 }
                             } else {
-                                setTranslationCache(cacheKey, b.title, matchingEdition.localizedCoverId, matchingEdition.key);
+                                setTranslationCache(cacheKey, b.title, matchingEdition.localizedCoverId, matchingEdition.key, true);
                                 saveTranslationCache();
                             }
                         } else {
-                            setTranslationCache(cacheKey, canonicalTitle);
+                            setTranslationCache(cacheKey, canonicalTitle, null, null, true);
                             saveTranslationCache();
                         }
                     }
                 } catch { }
             }
         }
+        if (currentDrawerWorkKey !== b.key) return;
         DOM.detailsTitle.textContent = canonicalTitle;
         if (canonicalTitle && canonicalTitle !== b.title) {
             if (cardInGrid) {
@@ -650,6 +647,7 @@ export const openDetailsDrawer = async (b, finalAALang) => {
                 }
             }
             b.title = canonicalTitle;
+            refreshBookTitleToken(b);
         }
         // Update Anna's Archive hyperlink with the canonical English title
         const cleanAAQuery = encodeURIComponent(`${canonicalTitle}${author !== 'Unknown Author' ? ' ' + author : ''}`);
@@ -674,12 +672,17 @@ export const openDetailsDrawer = async (b, finalAALang) => {
         } else {
             DOM.detailsDescription.innerHTML = '<span style="opacity: 0.6; font-style: italic;">Failed to load description. Please check your connection or try again.</span>';
         }
-    } catch {
+    } catch (err) {
+        if (err && err.name === 'AbortError') return;
         DOM.detailsDescription.innerHTML = '<span style="opacity: 0.6; font-style: italic;">Failed to load description. Please visit OpenLibrary directly.</span>';
     }
 };
 export const closeDetailsDrawer = () => {
     currentDrawerWorkKey = null;
+    if (drawerAbortController) {
+        drawerAbortController.abort();
+        drawerAbortController = null;
+    }
     closeTagsPopup();
     DOM.detailsDrawer.classList.remove('active');
     // Let the 300ms slide-out finish before the dialog leaves the top layer.
@@ -693,6 +696,10 @@ export const closeDetailsDrawer = () => {
 // state and the in-flight synopsis guard in sync on that path too.
 DOM.detailsDrawer.addEventListener('close', () => {
     currentDrawerWorkKey = null;
+    if (drawerAbortController) {
+        drawerAbortController.abort();
+        drawerAbortController = null;
+    }
     closeTagsPopup();
     DOM.detailsDrawer.classList.remove('active');
 });
@@ -796,40 +803,20 @@ export const updateCardCoverInGrid = async (workKey, coverId, coverEditionKey) =
         return; // Already rendering this exact cover; skip DOM recreation
     }
 
-    const coverUrl = getCoverUrl(cid, 'M', false);
-
     const cachedCover = getCoverFromMemory(cid);
     if (cachedCover) {
         coverContainer.innerHTML = `<img src="${cachedCover}" data-cover-id="${cid}" class="book-cover" alt="Cover Image" loading="lazy" decoding="async" onload="this.classList.add('cover-fresh')" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'no-cover\\'>No Cover</div>';">`;
         return;
     }
 
-    // Preload the new translated cover image and await resolution with a 3.5s timeout guard
-    // so the amber translating border remains active until the cover is fully downloaded.
-    await new Promise((resolve) => {
-        const timer = setTimeout(resolve, 3500);
-        const img = new Image();
-        img.onload = () => {
-            clearTimeout(timer);
-            // Open Library transparent placeholder rejection (1x1 transparent GIF defense)
-            if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
-                rememberCoverNegative(cid, 'empty_placeholder');
-                resolve();
-                return;
-            }
-            rememberCoverInMemory(cid, coverUrl);
-            coverContainer.innerHTML = `<img src="${coverUrl}" data-cover-id="${cid}" class="book-cover" alt="Cover Image" loading="lazy" decoding="async" onload="this.classList.add('cover-fresh')" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'no-cover\\'>No Cover</div>';">`;
-            cacheCoverInBackground(cid);
-            resolve();
-        };
-        img.onerror = () => {
-            clearTimeout(timer);
-            rememberCoverNegative(cid, '404');
-            // On failure, keep existing cover intact
-            resolve();
-        };
-        img.src = coverUrl;
-    });
+    // Fetch via unified cover pipeline (validates placeholder, caches Blob in IDB + object URL in RAM)
+    const resolvedSrc = await Promise.race([
+        fetchCoverDataUrl(cid),
+        new Promise(resolve => setTimeout(() => resolve(null), 3500))
+    ]);
+    if (resolvedSrc && coverContainer.isConnected) {
+        coverContainer.innerHTML = `<img src="${resolvedSrc}" data-cover-id="${cid}" class="book-cover" alt="Cover Image" loading="lazy" decoding="async" onload="this.classList.add('cover-fresh')" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'no-cover\\'>No Cover</div>';">`;
+    }
 };
 
 // (Scroll-reveal entrances were removed: below-fold arrivals now simply
@@ -886,6 +873,7 @@ export const scheduleSingleCardTranslation = (workKey) => {
                 const cachedTitle = translationCache.get(cacheKey);
                 if (cachedTitle !== doc.title) {
                     doc.title = cachedTitle;
+                    refreshBookTitleToken(doc);
                     updateCardTitleInGrid(doc.key, cachedTitle);
                 }
                 if (preferCovers && translationCoverCache.has(cacheKey)) {
@@ -933,6 +921,7 @@ export const scheduleSingleCardTranslation = (workKey) => {
                         saveTranslationCache();
                         if (fullTitle !== doc.title) {
                             doc.title = fullTitle;
+                            refreshBookTitleToken(doc);
                             updateCardTitleInGrid(doc.key, fullTitle);
                         }
                         if (preferCovers && matchingEdition.localizedCoverId && matchingEdition.localizedCoverId > 0) {
@@ -940,7 +929,7 @@ export const scheduleSingleCardTranslation = (workKey) => {
                             await updateCardCoverInGrid(doc.key, matchingEdition.localizedCoverId, null);
                         }
                     } else {
-                        setTranslationCache(cacheKey, doc.title, matchingEdition.localizedCoverId, matchingEdition.key);
+                        setTranslationCache(cacheKey, doc.title, matchingEdition.localizedCoverId, matchingEdition.key, true);
                         saveTranslationCache();
                         if (preferCovers && matchingEdition.localizedCoverId && matchingEdition.localizedCoverId > 0) {
                             await updateCardCoverInGrid(doc.key, matchingEdition.localizedCoverId, null);
@@ -948,7 +937,7 @@ export const scheduleSingleCardTranslation = (workKey) => {
                     }
                 } else {
                     // Valid API fetch completed, but no matching foreign edition exists
-                    setTranslationCache(cacheKey, doc.title);
+                    setTranslationCache(cacheKey, doc.title, null, null, true);
                     saveTranslationCache();
                 }
             }
@@ -964,7 +953,6 @@ export const scheduleSingleCardTranslation = (workKey) => {
 };
 export const syncCardTitles = (docs) => {
     if (!DOM.translateToggle || !DOM.translateToggle.checked) return;
-    resolvedTitlesInActivePass.clear();
     const targetLang = getExplicitTargetLang();
     if (!targetLang) return;
     const preferCovers = isTranslateCoversEnabled();
@@ -977,6 +965,7 @@ export const syncCardTitles = (docs) => {
             const cachedTitle = translationCache.get(cacheKey);
             if (cachedTitle !== b.title) {
                 b.title = cachedTitle;
+                refreshBookTitleToken(b);
                 updateCardTitleInGrid(b.key, cachedTitle);
             }
         }
@@ -1028,6 +1017,7 @@ export const renderResults = (rawFetchedCount, totalFoundOnAPI, isLoadMore, hidd
     const rawIncLang = DOM.incLang.value.trim().toLowerCase();
     const filterLangAA = rawIncLang ? (langMapToAA[rawIncLang] || rawIncLang) : null;
     if (!isLoadMore || needsFullRerender) {
+        resetCoverHydration();
         DOM.grid.innerHTML = '';
         setRenderIndex(0);
         renderNextChunk(isEditionsSort, filterLangAA);
@@ -1056,6 +1046,7 @@ export const renderSavedCollection = (books = library) => {
     const scrollEl = document.querySelector('main.results');
     const prevScroll = scrollEl ? scrollEl.scrollTop : window.scrollY;
 
+    resetCoverHydration();
     DOM.grid.innerHTML = '';
     DOM.footer.style.display = 'none';
     const isEditionsSort = DOM.sort.value === 'editions';
@@ -1226,6 +1217,22 @@ export const applyListView = (enabled) => {
     DOM.grid.classList.toggle('list-view', enabled);
     const fg = document.getElementById('featuredClassicsGrid');
     if (fg) fg.classList.toggle('list-view', enabled);
+    // Lazily populate whichever tag container was skipped at card-build time
+    const grids = [DOM.grid, fg].filter(Boolean);
+    const capacity = (!enabled && window.innerWidth > 768) ? getGridRowCapacity(getGridCardWidth(DOM.grid)) : 44;
+    grids.forEach(g => {
+        const selector = enabled ? '.tags-list.list-tags' : '.tags-list.grid-tags';
+        g.querySelectorAll(selector).forEach(el => {
+            if (!el.firstChild && el.dataset.subjects) {
+                try {
+                    const subjects = JSON.parse(el.dataset.subjects);
+                    if (subjects.length > 0) {
+                        el.innerHTML = enabled ? packTagsIntoOneRow(subjects, 80) : packTagsIntoTwoRows(subjects, capacity);
+                    }
+                } catch { }
+            }
+        });
+    });
 };
 export const isMobileViewport = () => window.innerWidth <= 768;
 export const updateSelectionBar = () => {
@@ -2112,22 +2119,32 @@ if (DOM.selectionBulkBtn) {
         // Determine add vs. remove by checking if all selected are in library.
         const allInLibrary = keys.every(key => isLibraryWork(key));
         const currentList = getCurrentSelectionList();
-        const bookByKey = (key) => currentList.find(b => b.key === key) ||
-            library.find(b => b.key === key);
+        const currentListMap = new Map();
+        currentList.forEach(b => { if (b && b.key && !currentListMap.has(b.key)) currentListMap.set(b.key, b); });
+        const libraryIndexMap = new Map();
+        library.forEach((b, idx) => { if (b && b.key && !libraryIndexMap.has(b.key)) libraryIndexMap.set(b.key, idx); });
+
         let changed = false;
-        keys.forEach(key => {
-            const idx = library.findIndex(s => s.key === key);
-            if (!allInLibrary && idx === -1) {
-                const b = bookByKey(key);
-                if (b) {
-                    library.push(createLibraryDoc(b));
-                    changed = true;
-                }
-            } else if (allInLibrary && idx > -1) {
-                library.splice(idx, 1);
+        if (allInLibrary) {
+            const keysToRemove = new Set(keys.filter(k => libraryIndexMap.has(k)));
+            if (keysToRemove.size > 0) {
+                const kept = library.filter(b => !keysToRemove.has(b.key));
+                library.length = 0;
+                library.push(...kept);
                 changed = true;
             }
-        });
+        } else {
+            keys.forEach(key => {
+                if (!libraryIndexMap.has(key)) {
+                    const b = currentListMap.get(key);
+                    if (b) {
+                        library.push(createLibraryDoc(b));
+                        libraryIndexMap.set(key, library.length - 1);
+                        changed = true;
+                    }
+                }
+            });
+        }
         if (changed) {
             setCachedSubjectCounts(null);
             setCachedLocalFilteredBooks(null);
@@ -2190,6 +2207,7 @@ export const handleGridClick = (e, getBookFn) => {
             if (b) {
                 toggleLibrary(b);
                 const isNowInLibrary = libraryBtn.classList.toggle('in-library');
+                libraryBtn.title = isNowInLibrary ? 'Remove from Library' : 'Add to Library';
                 libraryBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isNowInLibrary ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
                 updateToggleAllBtnState();
             }
@@ -2255,6 +2273,7 @@ export const handleGridClick = (e, getBookFn) => {
         e.stopPropagation();
         toggleLibrary(b);
         const isNowInLibrary = libraryBtn.classList.toggle('in-library');
+        libraryBtn.title = isNowInLibrary ? 'Remove from Library' : 'Add to Library';
         libraryBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isNowInLibrary ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
         updateToggleAllBtnState();
         return;
@@ -2362,7 +2381,7 @@ export const resetAllSettingsToDefault = () => {
         DOM.compactHeaderToggle.checked = true;
     }
     if (typeof applyCompactHeader === 'function') {
-        applyCompactHeader(false);
+        applyCompactHeader(true);
     }
 
     // 5. Reset Legacy Layout to Modern (OFF)
@@ -2373,7 +2392,7 @@ export const resetAllSettingsToDefault = () => {
         applyLegacyLayout(true);
     }
 
-    // 5b. Reset Overlayed Sidebar to OFF
+    // 5b. Reset Overlayed Sidebar to ON
     const overlayedSidebarToggleReset = document.getElementById('overlayedSidebarToggle');
     if (overlayedSidebarToggleReset) {
         overlayedSidebarToggleReset.checked = true;
@@ -2417,9 +2436,7 @@ export const resetAllSettingsToDefault = () => {
         DOM.cleanLibrarySubjectsToggle.checked = true;
     }
     if (currentDrawerWorkKey && descriptionCache.has(currentDrawerWorkKey)) {
-        if (typeof renderCurrentSynopsis === 'function') {
-            renderCurrentSynopsis();
-        }
+        renderSynopsis(descriptionCache.get(currentDrawerWorkKey));
     }
 
     // 10. Reset Title Translation to ON, Translate Covers to ON, & Complete Translation to OFF
@@ -2474,9 +2491,6 @@ export const resetAllSettingsToDefault = () => {
     if (DOM.extendedWarning) {
         DOM.extendedWarning.style.display = 'none';
     }
-    if (typeof state !== 'undefined' && state) {
-        state.customLimit = 100;
-    }
 
     // 14. Reset Pin Settings & Telemetry HUD Persistence to OFF
     safeStorage.setItem('ole_pin_settings', 'false');
@@ -2513,6 +2527,7 @@ export const resetAllSettingsToDefault = () => {
     setSchedulerMaxConnections(3);
     setSchedulerBurstCapacity(3);
     setCustomProxyUrl(DEFAULT_PROXY_URL);
+    setStorageProxyUrl(DEFAULT_PROXY_URL);
     safeStorage.setItem('ole_custom_proxy_url', DEFAULT_PROXY_URL);
     const debugProxyIn = DOM.debugProxyInput || document.getElementById('debugProxyInput');
     if (debugProxyIn) debugProxyIn.value = DEFAULT_PROXY_URL;
@@ -2577,6 +2592,7 @@ export const cancelAllSmoothScrolls = () => {
     });
     activeScrollContainers.clear();
     document.body.classList.remove('smooth-scrolling-active');
+    if (resultsHeaderEl && resultsHeaderEl.classList.contains('header-scrolling')) scheduleHeaderScrollIdle();
 };
 
 export function isSmoothScrollingActive() {
@@ -2690,6 +2706,7 @@ export const animateContainerScroll = (container, state) => {
             if (activeScrollContainers.size === 0) {
                 document.body.classList.remove('smooth-scrolling-active');
                 restoreCursorHitTest();
+                scheduleHeaderScrollIdle();
             }
             return;
         }
@@ -2777,7 +2794,19 @@ export const onWindowWheelCapture = (e) => {
     let container = null;
     const t = e.target;
     const main = resultsMainEl || document.querySelector('main.results');
+    const appContainer = main ? main.parentElement : null;
+    const overlaySidebarOpen = window.innerWidth > 768
+        && document.body.classList.contains('overlayed-sidebar')
+        && appContainer
+        && !appContainer.classList.contains('sidebar-collapsed');
+    if (overlaySidebarOpen && t instanceof HTMLElement && !t.closest('aside.filters') && !isOverlayScrollContainer(t)) {
+        // When Overlayed Sidebar is open, block scrolling on main.results (including
+        // over the exposed results-header) so the page stays locked behind it.
+        e.preventDefault();
+        return;
+    }
     if (t instanceof HTMLElement && main && !isOverlayScrollContainer(t)
+        && !overlaySidebarOpen
         && (t === main || t.closest('main.results'))) {
         const max = main.scrollHeight - main.clientHeight;
         if (delta > 0 ? main.scrollTop < max - 1 : main.scrollTop > 1) {
@@ -3352,9 +3381,8 @@ export const wireRailShortcut = (btn, groupId) => {
 export const applyLegacyLayout = (enabled) => {
     closeAllRailPopovers();
     document.body.classList.toggle('legacy-layout', enabled);
-    if (resultsHeaderEl) {
-        resultsHeaderEl.classList.remove('desktop-sticky-active', 'desktop-sticky-extending');
-        resultsHeaderEl.style.removeProperty('--desktop-sticky-progress');
+    if (enabled || window.innerWidth <= 768) {
+        scheduleHeaderVisual(null);
     }
     if (!DOM.sidebarStickyHeader || !DOM.legacySlotAnchor) return;
     const container = document.querySelector('.app-container');
@@ -3412,6 +3440,7 @@ export const applyLegacyLayout = (enabled) => {
     // Overlay engagement tracks the Legacy Layout state — switching layouts
     // must disengage/re-engage the floating sidebar + backdrop cleanly.
     applyOverlayedSidebar();
+    syncDesktopStickyHeader();
 };
 // ── Compact Desktop Mode ────────────────────────────────────────────────
 // Merges the top header's 3-combo search section and Settings button into
@@ -3472,11 +3501,24 @@ export const resultsHeaderEl = document.querySelector('.results-header');
 // notch gaps instead; a real pointer-down (intent to interact) restores
 // interactivity instantly so clicks never wait out the hold.
 export const SCROLL_CLASS_IDLE_MS = 250;
+export const HEADER_SCROLL_IDLE_MS = 50;
+let headerScrollTimeout = null;
+const clearHeaderScrollingState = () => {
+    clearTimeout(headerScrollTimeout);
+    headerScrollTimeout = null;
+    if (activeScrollContainers.size > 0) return;
+    if (resultsHeaderEl) resultsHeaderEl.classList.remove('header-scrolling');
+};
+function scheduleHeaderScrollIdle() {
+    clearTimeout(headerScrollTimeout);
+    headerScrollTimeout = setTimeout(clearHeaderScrollingState, HEADER_SCROLL_IDLE_MS);
+}
 export const clearScrollingState = () => {
     clearTimeout(scrollClassTimeout);
     scrollClassTimeout = null;
     document.body.classList.remove('is-scrolling');
     if (resultsMainEl) resultsMainEl.classList.remove('is-scrolling');
+    clearHeaderScrollingState();
     flushDeferredGridWrites();
 };
 document.addEventListener('pointerdown', () => {
@@ -3526,8 +3568,27 @@ const scheduleHeaderVisual = (target) => {
     };
     headerRafId = requestAnimationFrame(tick);
 };
+export const syncDesktopStickyHeader = () => {
+    if (!resultsHeaderEl || !resultsMainEl || document.body.classList.contains('legacy-layout') || window.innerWidth <= 768) {
+        scheduleHeaderVisual(null);
+        return;
+    }
+    const st = resultsMainEl.scrollTop;
+    const t = st > 74 ? Math.min(1, Math.max(0, (st - 70) / 250)) : 0;
+    const target = t > 0 ? (t * t * (3 - 2 * t)) : null;
+    if (headerRafId) { cancelAnimationFrame(headerRafId); headerRafId = 0; }
+    headerTargetProgress = target;
+    headerDisplayedProgress = target || 0;
+    applyHeaderVisual(headerDisplayedProgress);
+};
+let railPopoverScrollRafId = 0;
 export const handleScrollState = () => {
-    positionRailPopovers();
+    if (!railPopoverScrollRafId && Object.values(railPopoverState).some(p => p.open)) {
+        railPopoverScrollRafId = requestAnimationFrame(() => {
+            railPopoverScrollRafId = 0;
+            positionRailPopovers();
+        });
+    }
     if (!document.body.classList.contains('is-scrolling')) {
         document.body.classList.add('is-scrolling');
     }
@@ -3542,6 +3603,13 @@ export const handleScrollState = () => {
     // 74px scrolling down, hold until below 66px scrolling up (kills
     // threshold flicker when hovering at the onset).
     if (!document.body.classList.contains('legacy-layout') && window.innerWidth > 768 && resultsMainEl && resultsHeaderEl) {
+        resultsHeaderEl.classList.add('header-scrolling');
+        if (activeScrollContainers.size === 0) {
+            scheduleHeaderScrollIdle();
+        } else {
+            clearTimeout(headerScrollTimeout);
+            headerScrollTimeout = null;
+        }
         const st = resultsMainEl.scrollTop;
         const wasEngaged = headerTargetProgress !== null && headerTargetProgress > 0;
         if (st > 74 || (wasEngaged && st >= 66)) {
@@ -3571,6 +3639,7 @@ export const handleScrollState = () => {
             // Deadband hold: keep previous target, schedule nothing.
         }
     } else if (resultsHeaderEl && (headerTargetProgress !== null || resultsHeaderEl.classList.contains('desktop-sticky-active'))) {
+        clearHeaderScrollingState();
         scheduleHeaderVisual(null);
     }
 

@@ -22,7 +22,8 @@ import {
     renderSavedCollection, initTranslationObserver, prefetchTrendingSynopses, syncCardTitles,
     updateToggleAllBtnState, renderResults, updateSelectionBar, isMobileViewport,
     syncSettingsCategoriesForMode, collapseMobileSidebarIfOpen, updateSwipeHintVisibility,
-    selectionMode, selectedKeys, collapseSidebarForSearch
+    selectionMode, selectedKeys, collapseSidebarForSearch,
+    refreshGridCardTags, lastMeasuredCardWidth, getGridCardWidth
 } from './app-ui.js';
 import {
     bumpTranslationGeneration, saveTranslationCacheTimer, translationQueue,
@@ -33,7 +34,8 @@ import {
     isCleanLibrarySubjectsEnabled, toCleanSubjectTitleCase,
     setTranslationCache, saveTranslationCache, fetchCoverDataUrl, translationGenerationToken,
     hasCoverInMemory, getCachedCoverDataUrl, rememberCoverInMemory, cacheCoverInBackground,
-    getCoverFromMemory, TRENDING_KEY, TRENDING_LS_KEY, TRENDING_TTL
+    getCoverFromMemory, TRENDING_KEY, TRENDING_LS_KEY, TRENDING_TTL, clearCoverStore,
+    resetCoverHydration
 } from './storage-cache.js';
 import { fetchOpenLibrary, isApiBlocked, apiBlockResumeTime, apiTelemetry, fetchDiscoverBundleFromProxy } from './network-engine.js';
 import { DOM, RENDER_CHUNK, watchInputs, INPUT_IDS } from './dom.js';
@@ -88,12 +90,7 @@ export const clearTranslationAndCoverCache = async (e) => {
         await localforage.removeItem('ole_genre_shelves_cache_v3');
         safeStorage.removeItem('ole_trending_cache_v4_lsmirror');
 
-        const allKeys = await localforage.keys();
-        for (const k of allKeys) {
-            if (k.startsWith(COVER_DB_PREFIX) || k.startsWith(COVER_404_DB_PREFIX)) {
-                await localforage.removeItem(k).catch(() => {});
-            }
-        }
+        await clearCoverStore();
     } catch (err) {
         console.error('Error clearing translation cache from storage:', err);
     }
@@ -152,13 +149,24 @@ export const renderNextChunk = (isEditionsSort, filterLangAA) => {
     const fragment = document.createDocumentFragment();
     const endIdx = Math.min(renderIndex + RENDER_CHUNK, listToRender.length);
     const chunkDocs = listToRender.slice(renderIndex, endIdx);
+    const hadMeasuredWidth = !!lastMeasuredCardWidth;
+    const guessedWidth = getGridCardWidth(DOM.grid);
+    const pendingCoverImgs = [];
     for (let i = renderIndex; i < endIdx; i++) {
         const card = buildCard(listToRender[i], isEditionsSort, filterLangAA);
         card.style.setProperty('--card-index', i - renderIndex);
+        const pendingImg = card.querySelector('img.cover-pending[data-cover-id]');
+        if (pendingImg) pendingCoverImgs.push(pendingImg);
         fragment.appendChild(card);
     }
     DOM.grid.appendChild(fragment);
-    hydrateCachedCovers(DOM.grid);
+    if (!hadMeasuredWidth && endIdx > renderIndex && DOM.grid) {
+        const realWidth = getGridCardWidth(DOM.grid);
+        if (Math.abs(realWidth - guessedWidth) >= 2) {
+            refreshGridCardTags();
+        }
+    }
+    hydrateCachedCovers(DOM.grid, pendingCoverImgs);
     setRenderIndex(endIdx);
     if (currentViewMode === 'search') {
         if (renderIndex < allDisplayedDocs.length) {
@@ -262,6 +270,10 @@ export const arrayHasAllTokens = (arr, tokens) => {
     return tokens.every(tok => allWords.includes(tok)); // Exact word match
 };
 // Pre-calculate Search Tokens to eliminate regex parsing bottlenecks
+export const refreshBookTitleToken = (b) => {
+    if (!b) return;
+    b._ttl = b.title ? String(b.title).toLowerCase() : '';
+};
 export const cacheBookTokens = (b) => {
     if (b._tokensCached) return;
     b._sub = new Set(getBookTokens(b.subject));
@@ -269,7 +281,7 @@ export const cacheBookTokens = (b) => {
     b._per = new Set(getBookTokens(b.person));
     b._lang = new Set(getBookTokens(b.language).map(l => normalizeLanguageCode(l)));
     b._auth = new Set(getBookTokens(b.author_name));
-    b._ttl = b.title ? b.title.toLowerCase() : '';
+    refreshBookTitleToken(b);
     b._tokensCached = true;
 };
 export function setupTagInput(inputId, containerId, onInputCleared) {
@@ -704,6 +716,8 @@ export function setupAutocomplete(inputId, listId, indicatorId, ghostId, isLocal
     let isFocused = false;
     let currentMatches = [];
     let activeIndex = 0;
+    let acAbortController = null;
+    let acRequestSeq = 0;
     // The grey inline "ghost" preview is retired: the typed text itself now
     // always appears as the FIRST row of the suggestion list (see below), so
     // the ghost duplicated it and made Enter semantics ambiguous.
@@ -781,6 +795,12 @@ export function setupAutocomplete(inputId, listId, indicatorId, ghostId, isLocal
     });
     input.addEventListener('blur', () => {
         isFocused = false;
+        clearTimeout(timeout);
+        if (acAbortController) {
+            acAbortController.abort();
+            acAbortController = null;
+        }
+        acRequestSeq++;
         setTimeout(() => { list.style.display = 'none'; indicator.style.display = 'none'; indicator.classList.remove('blocked'); ghost.innerHTML = ''; input.placeholder = managerRef.getTags().length ? '' : 'e.g., Fantasy'; }, 250);
     });
     input.addEventListener('keydown', (e) => {
@@ -863,6 +883,11 @@ export function setupAutocomplete(inputId, listId, indicatorId, ghostId, isLocal
     });
     input.addEventListener('input', (e) => {
         clearTimeout(timeout);
+        if (acAbortController) {
+            acAbortController.abort();
+            acAbortController = null;
+        }
+        const reqSeq = ++acRequestSeq;
         const query = e.target.value.trim().toLowerCase();
         if (isLocalMode && isLocalMode()) {
             renderLocalSuggestions(query);
@@ -885,25 +910,20 @@ export function setupAutocomplete(inputId, listId, indicatorId, ghostId, isLocal
         }
         indicator.classList.remove('blocked');
         timeout = setTimeout(async () => {
-            if (!isFocused) return;
+            if (!isFocused || reqSeq !== acRequestSeq) return;
+            const controller = new AbortController();
+            acAbortController = controller;
             try {
-                // Fire the wildcard AND exact queries in parallel. OpenLibrary's
-                // wildcard relevance-ranking can bury the exact subject under
-                // compound names (typing "romance" returns Rhaeto-Romance/
-                // Romansh literature and never plain Romance), so the exact
-                // result set is always merged in — the old code only consulted
-                // it when the wildcard set was completely empty, which for
-                // "romance*" never happens.
+                // Fire the wildcard AND exact queries in parallel.
                 let docsWild = [];
                 let docsExact = [];
                 await Promise.all([
-                    fetchOpenLibrary(`https://openlibrary.org/search/subjects.json?q=${encodeURIComponent(query + '*')}&limit=20`, { passType: 'autocomplete' })
-                        .then(async res => { if (res.ok) docsWild = (await res.json()).docs || []; })
-                        .catch(() => { }),
-                    fetchOpenLibrary(`https://openlibrary.org/search/subjects.json?q=${encodeURIComponent(query)}&limit=20`, { passType: 'autocomplete' })
+                    fetchOpenLibrary(`https://openlibrary.org/search/subjects.json?q=${encodeURIComponent(query + '*')}&limit=20`, { passType: 'autocomplete', signal: controller.signal })
+                        .then(async res => { if (res.ok) docsWild = (await res.json()).docs || []; }),
+                    fetchOpenLibrary(`https://openlibrary.org/search/subjects.json?q=${encodeURIComponent(query)}&limit=20`, { passType: 'autocomplete', signal: controller.signal })
                         .then(async res => { if (res.ok) docsExact = (await res.json()).docs || []; })
-                        .catch(() => { })
-                ]);
+                ].map(p => p.catch((err) => { if (err && err.name === 'AbortError') throw err; })));
+                if (reqSeq !== acRequestSeq || !isFocused || input.value.trim().toLowerCase() !== query) return;
                 if (docsWild.length === 0 && docsExact.length === 0) throw new Error();
                 const processDocs = (rawDocs) => {
                     const mergedMap = new Map();
@@ -942,12 +962,6 @@ export function setupAutocomplete(inputId, listId, indicatorId, ghostId, isLocal
                     ...viableCandidates.filter(d => nameOf(d) !== query && nameOf(d).startsWith(query)),
                     ...viableCandidates.filter(d => !nameOf(d).startsWith(query))
                 ];
-                // The typed text itself is ALWAYS row 0 — even if it matches
-                // nothing (nonsense word). When OpenLibrary knows the exact
-                // subject, its real work count rides along on row 0; a genuine
-                // 0-work subject shows (0). Plain Enter commits it; a real
-                // subject is only one ArrowDown away. The exact duplicate from
-                // the candidate list is folded into it.
                 const typedText = input.value.trim();
                 const typedLower = typedText.toLowerCase();
                 const exactDoc = tiered.find(d => nameOf(d) === typedLower)
@@ -963,7 +977,8 @@ export function setupAutocomplete(inputId, listId, indicatorId, ghostId, isLocal
                     .slice(0, 10);
                 activeIndex = 0;
                 renderList();
-            } catch {
+            } catch (err) {
+                if (reqSeq !== acRequestSeq || (err && err.name === 'AbortError')) return;
                 if (isApiCooldownActive()) {
                     // A fetch got blocked mid-flight -- keep the static red arrow.
                     indicator.classList.add('blocked');
@@ -975,6 +990,8 @@ export function setupAutocomplete(inputId, listId, indicatorId, ghostId, isLocal
                 list.style.display = 'none';
                 ghost.innerHTML = '';
                 input.placeholder = managerRef.getTags().length ? '' : 'e.g., Fantasy';
+            } finally {
+                if (acAbortController === controller) acAbortController = null;
             }
         }, 300);
     });
@@ -1106,6 +1123,7 @@ export const JUNK_TERMS = [
 ];
 
 export const JUNK_REGEX = new RegExp(`\\b(${JUNK_TERMS.join('|')})\\b`, 'gi');
+const JUNK_TEST_REGEX = new RegExp(`\\b(${JUNK_TERMS.join('|')})\\b`);
 
 export function stripJunkTitleSuffix(title) {
     if (!title) return '';
@@ -1115,7 +1133,7 @@ export function stripJunkTitleSuffix(title) {
 export const isJunkTitleFragment = (title) => {
     if (!title) return true;
     const folded = title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    return JUNK_TERMS.some(term => new RegExp(`\\b${term}\\b`).test(folded));
+    return JUNK_TEST_REGEX.test(folded);
 };
 
 // Universal Structural Segment Decomposition (ISBD Standard):
@@ -1245,15 +1263,20 @@ export const pickBestEdition = (rawEditions, authorNames, referenceTitle, prefer
         if (isPureCount > 0) rankScore += 10;
         if (isJunk) rankScore -= 50;
 
-        // Pure Substring Cluster Consensus (Language-Agnostic, Zero Word Lists)
-        groupEntries.forEach(([otherNorm, otherList]) => {
-            if (otherNorm !== normTitle && normTitle.length >= 3 && otherNorm.length > normTitle.length) {
-                const subphraseRegex = new RegExp(`(?:^|[\\s:;–—/(\\[])${escapeRegex(normTitle)}(?:$|[\\s:;–—/)\\]])`, 'i');
-                if (subphraseRegex.test(otherNorm)) {
-                    rankScore += (otherList.length * 4);
+        // Pure Substring Cluster Consensus (compile regex at most once per group)
+        if (normTitle.length >= 3) {
+            let subphraseRegex = null;
+            groupEntries.forEach(([otherNorm, otherList]) => {
+                if (otherNorm !== normTitle && otherNorm.length > normTitle.length && otherNorm.includes(normTitle)) {
+                    if (!subphraseRegex) {
+                        subphraseRegex = new RegExp(`(?:^|[\\s:;–—/(\\[])${escapeRegex(normTitle)}(?:$|[\\s:;–—/)\\]])`, 'i');
+                    }
+                    if (subphraseRegex.test(otherNorm)) {
+                        rankScore += (otherList.length * 4);
+                    }
                 }
-            }
-        });
+            });
+        }
 
         // Micro Occam Penalty (Tie-breaker for equal-vote candidates)
         rankScore -= (normTitle.length * 0.05);
@@ -1319,7 +1342,7 @@ export const trimEditionPayload = (e) => ({
 // Pass 1: Requests first 100 editions (fast lane, ~200ms, resolves 93% of books).
 // Pass 2: If no covered match is found and more editions exist, performs a single wide sweep
 //         (limit=1000&offset=100) to find deep classic editions without serial pagination roundtrips.
-export const fetchWorkEditions = async (workKey, targetLang, totalEditions = null, signal = null) => {
+export const fetchWorkEditions = async (workKey, targetLang, totalEditions = null, signal = null, priority = 'normal') => {
     if (!workKey) return null;
     apiTelemetry.recordWorkTranslated();
     let allEntries = [];
@@ -1330,7 +1353,7 @@ export const fetchWorkEditions = async (workKey, targetLang, totalEditions = nul
     let res;
     let data;
     try {
-        res = await fetchOpenLibrary(pass1Url, { signal, passType: 'pass1' });
+        res = await fetchOpenLibrary(pass1Url, { signal, passType: 'pass1', priority });
         if (!res.ok) return null;
         data = await res.json();
         const entries = (data.entries || []).map(trimEditionPayload);
@@ -1348,15 +1371,19 @@ export const fetchWorkEditions = async (workKey, targetLang, totalEditions = nul
             return allEntries;
         }
 
-        // Pass 2: Deep Tail Sweep (if more editions exist beyond the first 100)
-        const hasMore = entries.length === 100 || (data.size && data.size > 100) || (totalEditions && totalEditions > 100);
+        // Pass 2: Deep Tail Sweep only when Pass 1 returned a full 100-entry page
+        const hasMore = entries.length === 100;
         if (hasMore) {
-            const pass2Url = `https://openlibrary.org${workKey}/editions.json?limit=1000&offset=100`;
-            const res2 = await fetchOpenLibrary(pass2Url, { signal, passType: 'pass2' });
-            if (res2.ok) {
-                const data2 = await res2.json();
-                const entries2 = (data2.entries || []).map(trimEditionPayload);
-                allEntries = allEntries.concat(entries2);
+            try {
+                const pass2Url = `https://openlibrary.org${workKey}/editions.json?limit=1000&offset=100`;
+                const res2 = await fetchOpenLibrary(pass2Url, { signal, passType: 'pass2', priority });
+                if (res2.ok) {
+                    const data2 = await res2.json();
+                    const entries2 = (data2.entries || []).map(trimEditionPayload);
+                    allEntries = allEntries.concat(entries2);
+                }
+            } catch {
+                // Preserve valid Pass 1 entries when Pass 2 times out or fails
             }
         }
     } catch {
@@ -1397,7 +1424,9 @@ export const isDuplicateTitle = (title, currentKey, targetLang) => {
 export function getExplicitTargetLang() {
     return DOM.incLang && DOM.incLang.value ? DOM.incLang.value.trim().toLowerCase() : '';
 }
+let localFilterToken = 0;
 export const applyLocalFilters = async () => {
+    const myFilterToken = ++localFilterToken;
     bumpSearchRequestToken(); // entering/using Library view cancels any in-flight search
     resolvedTitlesInActivePass.clear();
     setCachedSubjectCounts(null); // Invalidate cache when filters change
@@ -1416,6 +1445,7 @@ export const applyLocalFilters = async () => {
             if (translationCache.has(cacheKey)) {
                 apiTelemetry.recordCacheHit('ram', 'title');
                 b.title = translationCache.get(cacheKey);
+                refreshBookTitleToken(b);
             }
             if (preferCovers && translationCoverCache.has(cacheKey)) {
                 apiTelemetry.recordCacheHit('ram', 'cover');
@@ -1444,7 +1474,7 @@ export const applyLocalFilters = async () => {
                 if (DOM.libraryTranslateProgressBar) DOM.libraryTranslateProgressBar.style.width = '0%';
 
                 const updateProgress = () => {
-                    if (activeToken !== translationGenerationToken) return;
+                    if (activeToken !== translationGenerationToken || myFilterToken !== localFilterToken) return;
                     const pct = Math.round((completed / total) * 100);
                     if (DOM.totalCount) {
                         DOM.totalCount.textContent = `Translating library - ${completed} / ${total} (${pct}%)`;
@@ -1460,7 +1490,7 @@ export const applyLocalFilters = async () => {
                     const cacheKey = `${b.key}_${targetLang}`;
                     try {
                         const entries = await fetchWorkEditions(b.key, targetLang, b.edition_count);
-                        if (activeToken !== translationGenerationToken) return;
+                        if (activeToken !== translationGenerationToken || myFilterToken !== localFilterToken) return;
                         if (Array.isArray(entries)) {
                             const validEditions = entries.filter(entry => {
                                 if (!entry.languages) return false;
@@ -1479,12 +1509,13 @@ export const applyLocalFilters = async () => {
                                     setTranslationCache(cacheKey, fullTitle, matchingEdition.localizedCoverId, matchingEdition.key);
                                     saveTranslationCache();
                                     b.title = fullTitle;
+                                    refreshBookTitleToken(b);
                                     if (preferCovers && matchingEdition.localizedCoverId) {
                                         b.cover_i = matchingEdition.localizedCoverId;
                                         coverPrewarmPromises.push(fetchCoverDataUrl(matchingEdition.localizedCoverId));
                                     }
                                 } else {
-                                    setTranslationCache(cacheKey, b.title, matchingEdition.localizedCoverId, matchingEdition.key);
+                                    setTranslationCache(cacheKey, b.title, matchingEdition.localizedCoverId, matchingEdition.key, true);
                                     saveTranslationCache();
                                     if (preferCovers && matchingEdition.localizedCoverId) {
                                         coverPrewarmPromises.push(fetchCoverDataUrl(matchingEdition.localizedCoverId));
@@ -1492,12 +1523,12 @@ export const applyLocalFilters = async () => {
                                 }
                             } else {
                                 // Valid API response received, but no matching foreign edition exists in OL -> cache original title as negative hit
-                                setTranslationCache(cacheKey, b.original_title || b.title);
+                                setTranslationCache(cacheKey, b.original_title || b.title, null, null, true);
                                 saveTranslationCache();
                             }
                         } else {
                             // 404 Not Found or Missing record in OL -> Negatively cache canonical title so we never retry a missing work
-                            setTranslationCache(cacheKey, b.original_title || b.title);
+                            setTranslationCache(cacheKey, b.original_title || b.title, null, null, true);
                             saveTranslationCache();
                         }
                     } catch { } finally {
@@ -1508,12 +1539,13 @@ export const applyLocalFilters = async () => {
 
                 // Dispatch all tasks into the scheduler-managed queue without artificial caller sleeps
                 await Promise.all(docsToTranslate.map(fetchTask));
+                if (myFilterToken !== localFilterToken || currentViewMode !== 'library') return;
 
                 // Immediately flush persistent translation cache to IndexedDB
                 saveTranslationCache(true);
 
                 // Guarantee all in-flight cover downloads finish before rendering (0ms pop-in)
-                if (coverPrewarmPromises.length > 0 && activeToken === translationGenerationToken) {
+                if (coverPrewarmPromises.length > 0 && activeToken === translationGenerationToken && myFilterToken === localFilterToken) {
                     try {
                         await Promise.all(coverPrewarmPromises);
                     } catch { }
@@ -1526,6 +1558,7 @@ export const applyLocalFilters = async () => {
                     }, 300);
                 }
             }
+            if (myFilterToken !== localFilterToken || currentViewMode !== 'library') return;
             renderSavedCollection(filtered);
         } else {
             // ASYNC Mode
@@ -1537,6 +1570,7 @@ export const applyLocalFilters = async () => {
         // ensure displayed titles and covers revert to their canonical original state
         filtered.forEach(b => {
             if (b.original_title) b.title = b.original_title;
+            refreshBookTitleToken(b);
             if (b.original_cover_i) b.cover_i = b.original_cover_i;
         });
         renderSavedCollection(filtered);
@@ -1668,12 +1702,12 @@ export const fetchGenreShelves = async () => {
             }
         }
 
-        // Direct/fallback path: fetch all 12 genres in parallel
+        // Direct/fallback path: fetch all 12 genres in parallel (minimal fields for fast response)
         try {
             const results = {};
             await Promise.all(DISCOVER_GENRES.map(async (genre) => {
                 try {
-                    const res = await fetchOpenLibrary(`${API_BASE}?q=subject:"${encodeURIComponent(genre.toLowerCase())}"+AND+ratings_count:[10+TO+*]&limit=5&sort=editions`, { passType: 'discovery' });
+                    const res = await fetchOpenLibrary(`${API_BASE}?q=subject:"${encodeURIComponent(genre.toLowerCase())}"+AND+ratings_count:[10+TO+*]&limit=5&sort=editions&fields=key,title,cover_i,author_name`, { passType: 'discovery' });
                     const data = await res.json();
                     results[genre] = (data.docs || []).slice(0, 5).map(d => ({
                         key: d.key,
@@ -1703,6 +1737,17 @@ export const fetchGenreShelves = async () => {
     return cachedGenreShelves;
 };
 
+const warmCoverIdsBounded = async (coverIds, batchSize = 8) => {
+    for (let i = 0; i < coverIds.length; i += batchSize) {
+        const batch = coverIds.slice(i, i + batchSize);
+        await Promise.all(batch.map(cid =>
+            getCachedCoverDataUrl(cid)
+                .then(dataUrl => { if (dataUrl) rememberCoverInMemory(cid, dataUrl); })
+                .catch(() => { })
+        ));
+    }
+};
+
 export const prewarmCachedGenreCovers = async () => {
     if (!cachedGenreShelves) {
         try {
@@ -1720,22 +1765,20 @@ export const prewarmCachedGenreCovers = async () => {
     });
     if (coverIds.length === 0) return;
 
-    // Fast parallel RAM warming from IndexedDB (reads all cached covers into RAM concurrently)
+    // Bounded RAM warming from IndexedDB
     const uncachedInRam = coverIds.filter(cid => !hasCoverInMemory(cid));
     if (uncachedInRam.length > 0) {
-        await Promise.all(uncachedInRam.map(cid =>
-            getCachedCoverDataUrl(cid)
-                .then(dataUrl => { if (dataUrl) rememberCoverInMemory(cid, dataUrl); })
-                .catch(() => { })
-        ));
+        await warmCoverIdsBounded(uncachedInRam, 8);
     }
 
-    // Background pre-fetch for missing covers (fresh device / cold cache) without blocking UI
-    const missingFromCache = coverIds.filter(cid => !hasCoverInMemory(cid));
-    if (missingFromCache.length > 0) {
-        missingFromCache.forEach(cid => {
-            cacheCoverInBackground(cid);
-        });
+    // Only pre-fetch genre covers over the network when Genres tab is active (avoids competing with Trending covers on boot)
+    if (currentDiscoverTab === 'genres') {
+        const missingFromCache = coverIds.filter(cid => !hasCoverInMemory(cid));
+        if (missingFromCache.length > 0) {
+            missingFromCache.forEach(cid => {
+                cacheCoverInBackground(cid);
+            });
+        }
     }
 };
 
@@ -1744,14 +1787,9 @@ export const prewarmCachedTrendingCovers = async () => {
     const coverIds = cachedTrendingBooks.map(b => b && (b.cover_i || b.cover_edition_key)).filter(Boolean);
     if (coverIds.length === 0) return;
 
-    // Fast parallel RAM warming from IndexedDB (reads all cached trending covers into RAM concurrently)
     const uncachedInRam = coverIds.filter(cid => !hasCoverInMemory(cid));
     if (uncachedInRam.length > 0) {
-        await Promise.all(uncachedInRam.map(cid =>
-            getCachedCoverDataUrl(cid)
-                .then(dataUrl => { if (dataUrl) rememberCoverInMemory(cid, dataUrl); })
-                .catch(() => { })
-        ));
+        await warmCoverIdsBounded(uncachedInRam, 8);
     }
 };
 // IndexedDB is the primary store, but if it's corrupted, quota-blocked or
@@ -1775,6 +1813,7 @@ export const parseTrendingPayload = (raw) => {
 };
 
 export const renderDiscoverDashboard = async () => {
+    resetCoverHydration();
     initTranslationObserver();
     bumpSearchRequestToken(); // navigating away cancels any in-flight search
     DOM.status.style.display = 'none';
@@ -2479,7 +2518,15 @@ export const deduplicateSearchDocs = (docs, existingDocs = []) => {
 };
 
 export let searchRequestToken = 0;
-export const bumpSearchRequestToken = () => ++searchRequestToken;
+let activeSearchAbortController = null;
+export const bumpSearchRequestToken = () => {
+    if (activeSearchAbortController) {
+        activeSearchAbortController.abort();
+        activeSearchAbortController = null;
+    }
+    return ++searchRequestToken;
+};
+export let lastRawFetchedCount = 0;
 export let currentTotalHidden = 0;
 export let activeQueryParams = new URLSearchParams();
 // Page size of the in-flight search query. Single source of truth for the
@@ -2576,7 +2623,9 @@ export const performSearch = async (isLoadMore = false) => {
         setCurrentPage(currentPage + 1);
     }
     activeQueryParams.set('page', currentPage);
-    const requestToken = ++searchRequestToken;
+    const requestToken = bumpSearchRequestToken();
+    const searchAbortController = new AbortController();
+    activeSearchAbortController = searchAbortController;
     injectSkeletonScreen(isLoadMore);
     const currentSortDir = sortDirection;
     // Fetch feedback: start elapsed timer
@@ -2606,7 +2655,7 @@ export const performSearch = async (isLoadMore = false) => {
     let renderTime = 0;
     const totalStartTime = performance.now();
     try {
-        const response = await fetchOpenLibrary(`${API_BASE}?${activeQueryParams.toString()}`, { passType: 'search' });
+        const response = await fetchOpenLibrary(`${API_BASE}?${activeQueryParams.toString()}`, { passType: 'search', signal: searchAbortController.signal });
         if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
         const data = await response.json();
         // A newer search superseded this one -- don't render stale results.
@@ -2622,6 +2671,7 @@ export const performSearch = async (isLoadMore = false) => {
         }, 100);
         setLastSearchTotalFound(data.numFound || 0);
         const rawDocs = data.docs || [];
+        lastRawFetchedCount = rawDocs.length;
         apiTelemetry.recordSearchDocs(rawDocs.length);
         rawDocs.forEach(d => {
             d.original_title = d.title;
@@ -2650,6 +2700,7 @@ export const performSearch = async (isLoadMore = false) => {
                 if (translationCache.has(cacheKey)) {
                     apiTelemetry.recordCacheHit('ram', 'title');
                     b.title = translationCache.get(cacheKey);
+                    refreshBookTitleToken(b);
                 }
                 if (preferCovers && translationCoverCache.has(cacheKey)) {
                     apiTelemetry.recordCacheHit('ram', 'cover');
@@ -2701,13 +2752,14 @@ export const performSearch = async (isLoadMore = false) => {
                                         saveTranslationCache();
                                         if (fullTitle !== b.title) {
                                             b.title = fullTitle;
+                                            refreshBookTitleToken(b);
                                         }
                                         if (preferCovers && matchingEdition.localizedCoverId) {
                                             b.cover_i = matchingEdition.localizedCoverId;
                                             coverPrewarmPromises.push(fetchCoverDataUrl(matchingEdition.localizedCoverId));
                                         }
                                     } else {
-                                        setTranslationCache(cacheKey, b.title, matchingEdition.localizedCoverId, matchingEdition.key);
+                                        setTranslationCache(cacheKey, b.title, matchingEdition.localizedCoverId, matchingEdition.key, true);
                                         saveTranslationCache();
                                         if (preferCovers && matchingEdition.localizedCoverId) {
                                             coverPrewarmPromises.push(fetchCoverDataUrl(matchingEdition.localizedCoverId));
@@ -2715,12 +2767,12 @@ export const performSearch = async (isLoadMore = false) => {
                                     }
                                 } else {
                                     // Valid API response received, but no matching foreign edition exists in OL -> cache original title as negative hit
-                                    setTranslationCache(cacheKey, b.original_title || b.title);
+                                    setTranslationCache(cacheKey, b.original_title || b.title, null, null, true);
                                     saveTranslationCache();
                                 }
                             } else {
                                 // 404 Not Found or Missing record in OL -> Negatively cache canonical title so we never retry a missing work
-                                setTranslationCache(cacheKey, b.original_title || b.title);
+                                setTranslationCache(cacheKey, b.original_title || b.title, null, null, true);
                                 saveTranslationCache();
                             }
                         } catch { } finally {
@@ -2812,7 +2864,7 @@ export const performSearch = async (isLoadMore = false) => {
         });
     } catch (error) {
         // A newer search superseded this failure -- its UI is the current one.
-        if (requestToken !== searchRequestToken) return;
+        if (requestToken !== searchRequestToken || (error && error.name === 'AbortError')) return;
         clearInterval(fetchTimerInterval);
         DOM.fetchStatus.textContent = '';
         DOM.fetchStatus.style.opacity = ''; // Reset opacity state on error

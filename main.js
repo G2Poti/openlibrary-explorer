@@ -24,7 +24,7 @@ import {
     SYNOPSIS_CACHE_TTL, getCachedSynopsis, cacheSynopsis, TITLE_CASE_LOWER,
     ROMAN_NUMERALS, toCleanSubjectTitleCase, isCleanLibrarySubjectsEnabled,
     isSynopsisCleanupEnabled, cleanSynopsis, setStorageProxyUrl, setLibrarySource,
-    TRENDING_KEY, TRENDING_LS_KEY, TRENDING_TTL
+    TRENDING_KEY, TRENDING_LS_KEY, TRENDING_TTL, clearCoverStore, initCoverIndex
 } from './storage-cache.js';
 import {
     apiTelemetry, apiBlockResumeTime, isApiBlocked, fetchOpenLibrary,
@@ -50,7 +50,7 @@ import {
     performSearch, currentTotalHidden, activeQueryParams, activeMinStar, activeMinRCount,
     activeSort, lastSearchTimingHTML, fetchTimerInterval, clearTranslationAndCoverCache,
     applyLocalFilters, renderNextChunk, createLibraryDoc, cacheBookTokens, renderDiscoverDashboard,
-    SORT_DEFAULTS
+    SORT_DEFAULTS, lastRawFetchedCount
 } from './book-features.js';
 import {
     openDetailsDrawer, closeDetailsDrawer, renderResults, renderSavedCollection,
@@ -252,7 +252,7 @@ document.getElementById('sortDirBtn').addEventListener('click', () => {
     } else {
         if (val === 'reviews') {
             allDisplayedDocs.sort((a, b) => (sortDirection === 'desc' ? 1 : -1) * ((b.ratings_count || 0) - (a.ratings_count || 0)));
-            renderResults(allDisplayedDocs.length, lastSearchTotalFound, false, currentTotalHidden, 0, true);
+            renderResults(lastRawFetchedCount, lastSearchTotalFound, false, currentTotalHidden, 0, true);
         } else {
             performSearch(false);
         }
@@ -514,8 +514,8 @@ DOM.viewSavedBtn.addEventListener('click', () => {
         if (DOM.persistToggle.checked) saveStateToHash(true);
         syncSettingsCategoriesForMode('search');
         syncSortNoteState();
-        if (allDisplayedDocs.length > 0) {
-            renderResults(allDisplayedDocs.length, lastSearchTotalFound, false, 0, 0, false);
+        if (allDisplayedDocs.length > 0 || (lastSearchTotalFound > 0 && hasActiveSearchCriteria())) {
+            renderResults(lastRawFetchedCount, lastSearchTotalFound, false, 0, 0, false);
             if (lastSearchTimingHTML) {
                 DOM.querySpeedTooltip.innerHTML = lastSearchTimingHTML;
                 DOM.querySpeedContainer.style.display = 'inline-flex';
@@ -586,16 +586,24 @@ DOM.toggleAllBtn.addEventListener('click', () => {
         return;
     }
     let changed = false;
-    currentList.forEach(b => {
-        const idx = library.findIndex(s => s.key === b.key);
-        if (!allInLibrary && idx === -1) {
-            library.push(createLibraryDoc(b));
-            changed = true;
-        } else if (allInLibrary && idx > -1) {
-            library.splice(idx, 1);
+    if (allInLibrary) {
+        const keysToRemove = new Set(currentList.map(b => b.key).filter(Boolean));
+        const nextLibrary = library.filter(s => !keysToRemove.has(s.key));
+        if (nextLibrary.length !== library.length) {
+            library.length = 0;
+            library.push(...nextLibrary);
             changed = true;
         }
-    });
+    } else {
+        const seenKeys = new Set(library.map(s => s.key).filter(Boolean));
+        currentList.forEach(b => {
+            if (b.key && !seenKeys.has(b.key)) {
+                seenKeys.add(b.key);
+                library.push(createLibraryDoc(b));
+                changed = true;
+            }
+        });
+    }
     if (changed) {
         cachedSubjectCounts = null; // Invalidate cache
         cachedLocalFilteredBooks = null;
@@ -605,12 +613,14 @@ DOM.toggleAllBtn.addEventListener('click', () => {
         if (currentViewMode === 'search') {
             DOM.grid.querySelectorAll('.library-btn').forEach(btn => {
                 btn.classList.toggle('in-library', !allInLibrary);
+                btn.title = !allInLibrary ? 'Remove from Library' : 'Add to Library';
                 btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${!allInLibrary ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
             });
             const featuredGrid = document.getElementById('featuredClassicsGrid');
             if (featuredGrid) {
                 featuredGrid.querySelectorAll('.library-btn').forEach(btn => {
                     btn.classList.toggle('in-library', !allInLibrary);
+                    btn.title = !allInLibrary ? 'Remove from Library' : 'Add to Library';
                     btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${!allInLibrary ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
                 });
             }
@@ -705,7 +715,8 @@ Promise.all([
     withBootTimeout(localforage.getItem('ole_bookmarks')),
     withBootTimeout(loadTranslationCache()),
     withBootTimeout(localforage.getItem(TRENDING_KEY)),
-    withBootTimeout(localforage.getItem('ole_genre_shelves_cache_v3'))
+    withBootTimeout(localforage.getItem('ole_genre_shelves_cache_v3')),
+    withBootTimeout(initCoverIndex())
 ]).then(async ([data, , trendingRaw, genresRaw]) => {
     if (trendingRaw && !cachedTrendingBooks) {
         const parsed = parseTrendingPayload(trendingRaw);
@@ -760,11 +771,6 @@ Promise.all([
             }
         } catch { }
     }
-    // Fast parallel RAM warming from IndexedDB for trending covers before initial UI paint
-    try {
-        await prewarmCachedTrendingCovers();
-    } catch { }
-
     // If IndexedDB is empty, check if they have old LocalStorage data to rescue
     if (!data && safeStorage.getItem('ole_bookmarks')) {
         try {
@@ -777,7 +783,13 @@ Promise.all([
         }
     }
     bootAppUI(data);
-    prewarmCachedGenreCovers();
+    // Warm RAM cover cache non-blockingly after UI boots so 60 IDB reads never delay first paint
+    prewarmCachedTrendingCovers().catch(() => { });
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(() => { prewarmCachedGenreCovers().catch(() => { }); }, { timeout: 2500 });
+    } else {
+        setTimeout(() => { prewarmCachedGenreCovers().catch(() => { }); }, 800);
+    }
 }).catch((e) => {
     // Storage layer exploded entirely — boot the UI anyway with empty data
     console.error('Storage boot failed; starting UI without persisted data.', e);
@@ -788,7 +800,8 @@ DOM.globalSearchInput.addEventListener('input', () => {
     DOM.globalSearchClearBtn.style.display = DOM.globalSearchInput.value ? 'block' : 'none';
     checkInputs();
     if (currentViewMode === 'library') {
-        applyLocalFilters();
+        clearTimeout(localFilterTimer);
+        localFilterTimer = setTimeout(applyLocalFilters, 150);
     }
 });
 if (DOM.globalSearchClearBtn) {
@@ -1036,19 +1049,32 @@ if (mobileSettingsBtn && legacyCollapsedRail) {
 }
 
 let sidebarExpandRevealTimeoutId = null;
+let nonOverlayPushTimeoutId = null;
+const NON_OVERLAY_SLIDE_CLASSES = ['non-overlay-push-open', 'non-overlay-push-close'];
 // → app-ui.js: mobileLegacyRevealTimeoutId (decl; hub imports it above)
 if (sidebarToggleBtn) {
     sidebarToggleBtn.addEventListener('click', () => {
         closeAllRailPopovers();
         const container = document.querySelector('.app-container');
         if (container) {
-
-            // Overlayed Sidebar: content never reflows on open/close, so the
-            // tag-fade mask is unnecessary - and its flicker is visible.
             clearTimeout(sidebarExpandRevealTimeoutId);
-            document.body.classList.add('legacy-sidebar-transitioning');
-            document.body.classList.add('overlay-sidebar-transitioning');
+            clearTimeout(nonOverlayPushTimeoutId);
+            document.body.classList.remove(...NON_OVERLAY_SLIDE_CLASSES);
+
             const collapsing = !container.classList.contains('sidebar-collapsed');
+            const useCompositedPush = window.innerWidth > 768
+                && !document.body.classList.contains('legacy-layout')
+                && !document.body.classList.contains('overlayed-sidebar')
+                && !document.body.classList.contains('reduce-animations')
+                && !(typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+            if (useCompositedPush) {
+                document.body.classList.add(collapsing ? 'non-overlay-push-close' : 'non-overlay-push-open');
+            } else {
+                document.body.classList.add('legacy-sidebar-transitioning');
+                document.body.classList.add('overlay-sidebar-transitioning');
+            }
+
             container.classList.toggle('sidebar-collapsed');
             if (mobileSidebarBackdrop) {
                 mobileSidebarBackdrop.classList.toggle('active', !container.classList.contains('sidebar-collapsed'));
@@ -1058,12 +1084,18 @@ if (sidebarToggleBtn) {
                 document.body.classList.remove('legacy-sidebar-transitioning');
                 document.body.classList.remove('overlay-sidebar-transitioning');
             }, 280);
+
             const sidebar = document.querySelector('aside.filters');
             let settled = false;
             const onSettled = () => {
                 if (settled) return;
                 settled = true;
-                if (sidebar) sidebar.removeEventListener('transitionend', onTransitionEnd);
+                clearTimeout(nonOverlayPushTimeoutId);
+                if (sidebar) {
+                    sidebar.removeEventListener('transitionend', onTransitionEnd);
+                    sidebar.removeEventListener('animationend', onAnimationEnd);
+                }
+                document.body.classList.remove(...NON_OVERLAY_SLIDE_CLASSES);
                 // Stock relocation: rail <-> header once the slide has settled
                 if (document.body.classList.contains('legacy-layout') || window.innerWidth <= 768) {
                     if (collapsing) {
@@ -1089,8 +1121,16 @@ if (sidebarToggleBtn) {
                     onSettled();
                 }
             };
-            if (sidebar) sidebar.addEventListener('transitionend', onTransitionEnd);
-            setTimeout(onSettled, 280);
+            const onAnimationEnd = (e) => {
+                if (e.target === sidebar) {
+                    onSettled();
+                }
+            };
+            if (sidebar) {
+                sidebar.addEventListener('transitionend', onTransitionEnd);
+                if (useCompositedPush) sidebar.addEventListener('animationend', onAnimationEnd);
+            }
+            nonOverlayPushTimeoutId = setTimeout(onSettled, 280);
         }
     });
 }
@@ -1631,18 +1671,7 @@ const resetTelemetryBtn = document.getElementById('resetTelemetryBtn');
 if (resetTelemetryBtn) {
     resetTelemetryBtn.addEventListener('click', () => {
         apiTelemetry.reset();
-        cover404MemoryCache.clear();
-        coverMemoryCache.clear();
-        coverFetchInFlight.clear();
-        try {
-            localforage.keys().then(keys => {
-                keys.forEach(k => {
-                    if (k.startsWith(COVER_404_DB_PREFIX) || k.startsWith(COVER_DB_PREFIX)) {
-                        localforage.removeItem(k).catch(() => {});
-                    }
-                });
-            }).catch(() => {});
-        } catch { }
+        clearCoverStore().catch(() => { });
         syncTelemetryHUD();
         const origText = resetTelemetryBtn.textContent;
         resetTelemetryBtn.textContent = 'Metrics Reset!';

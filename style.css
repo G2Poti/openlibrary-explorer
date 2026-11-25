@@ -354,6 +354,13 @@ aside.filters {
     aside.filters {
         scrollbar-gutter: stable;
     }
+
+    /* Non-overlayed Alternate Layout uses GPU transform keyframes instead of
+       width animation; drop width from transition so removing the temporary
+       push-close override at settle never starts a second width transition. */
+    body:not(.legacy-layout):not(.overlayed-sidebar) aside.filters {
+        transition: border-color 0.3s, opacity 0.2s;
+    }
 }
 
 .sidebar-collapsed aside.filters {
@@ -435,6 +442,166 @@ body.legacy-layout .results-header {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
     }
+
+    /* Fast header frost recovery (50ms after glide truly settles). A dedicated
+       composited ::before veil covers the bar at 0.93 alpha during scroll (same
+       frame backdrop-filter drops -> zero 0.78 flash) and fades via pure GPU
+       opacity once blurred rest state resumes, with zero header repaints. */
+    body:not(.legacy-layout) main.results .results-header.desktop-sticky-active::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background: rgba(255, 255, 255, 0.72);
+        opacity: 0;
+        transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: opacity;
+    }
+
+    [data-theme="dark"] body:not(.legacy-layout) main.results .results-header.desktop-sticky-active::before {
+        background: rgba(22, 27, 34, 0.72);
+    }
+
+    body.compact-header:not(.legacy-layout) main.results .results-header.desktop-sticky-active::before {
+        background: rgba(30, 41, 59, 0.72);
+    }
+
+    [data-theme="light"] body.compact-header:not(.legacy-layout) main.results .results-header.desktop-sticky-active::before {
+        background: rgba(255, 255, 255, 0.72);
+    }
+
+    body:not(.legacy-layout) main.results .results-header.desktop-sticky-active:not(.header-scrolling) {
+        backdrop-filter: blur(14px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+    }
+
+    body:not(.legacy-layout) main.results .results-header.desktop-sticky-active.header-scrolling {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    body:not(.legacy-layout) main.results .results-header.desktop-sticky-active.header-scrolling::before {
+        opacity: 1;
+        transition: none;
+    }
+
+    body.reduce-animations:not(.legacy-layout) .results-header.desktop-sticky-active::before {
+        transition: none !important;
+    }
+
+    body.reduce-animations:not(.legacy-layout) .results-header.desktop-sticky-active {
+        transition: none !important;
+    }
+
+    /* Non-overlayed Alternate Layout sidebar open/close: animate strictly via
+       compositor transforms so main.results/bookGrid never re-layouts 20+
+       times across the 260ms slide (single settle pass on completion). */
+    body.non-overlay-push-open .app-container,
+    body.non-overlay-push-close .app-container {
+        position: relative;
+    }
+
+    body.non-overlay-push-open aside.filters,
+    body.non-overlay-push-close aside.filters {
+        position: absolute !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: auto !important;
+        width: 340px !important;
+        padding: 0 10px !important;
+        border-right-width: 1px !important;
+        opacity: 1 !important;
+        pointer-events: none !important;
+        overflow-y: auto !important;
+        z-index: 120 !important;
+        transition: none !important;
+        will-change: transform;
+    }
+
+    body.sidebar-right.non-overlay-push-open aside.filters,
+    body.sidebar-right.non-overlay-push-close aside.filters {
+        left: auto !important;
+        right: 0 !important;
+        border-right-width: 0 !important;
+        border-left-width: 1px !important;
+    }
+
+    body.non-overlay-push-open aside.filters {
+        animation: pushSidebarInLeft 0.26s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    body.non-overlay-push-close aside.filters {
+        animation: pushSidebarOutLeft 0.26s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    body.sidebar-right.non-overlay-push-open aside.filters {
+        animation: pushSidebarInRight 0.26s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    body.sidebar-right.non-overlay-push-close aside.filters {
+        animation: pushSidebarOutRight 0.26s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    body.non-overlay-push-open:not(.sidebar-right) main.results,
+    body.non-overlay-push-close:not(.sidebar-right) main.results {
+        transition: none !important;
+        will-change: transform;
+    }
+
+    body.non-overlay-push-open:not(.sidebar-right) main.results {
+        animation: pushMainRight 0.26s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    body.non-overlay-push-close:not(.sidebar-right) main.results {
+        animation: pushMainLeft 0.26s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    body.non-overlay-push-open .results-header.desktop-sticky-active,
+    body.non-overlay-push-close .results-header.desktop-sticky-active {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    body.non-overlay-push-open .book-card,
+    body.non-overlay-push-close .book-card,
+    body.non-overlay-push-open aside.filters *,
+    body.non-overlay-push-close aside.filters *,
+    body.non-overlay-push-open .results-header *,
+    body.non-overlay-push-close .results-header * {
+        transition: none !important;
+    }
+}
+
+@keyframes pushSidebarInLeft {
+    from { transform: translateX(-340px); }
+    to { transform: translateX(0); }
+}
+
+@keyframes pushSidebarOutLeft {
+    from { transform: translateX(0); }
+    to { transform: translateX(-340px); }
+}
+
+@keyframes pushSidebarInRight {
+    from { transform: translateX(340px); }
+    to { transform: translateX(0); }
+}
+
+@keyframes pushSidebarOutRight {
+    from { transform: translateX(0); }
+    to { transform: translateX(340px); }
+}
+
+@keyframes pushMainRight {
+    from { transform: translateX(0); }
+    to { transform: translateX(340px); }
+}
+
+@keyframes pushMainLeft {
+    from { transform: translateX(340px); }
+    to { transform: translateX(0); }
 }
 
 body.legacy-layout .sidebar-sticky-header {
@@ -643,13 +810,19 @@ body.overlay-sidebar-transitioning .mobile-sidebar-branding {
         -webkit-backdrop-filter: blur(4px);
     }
 
-    /* The search section stacks ABOVE the backdrop so it stays crisp and
-       fully interactive while everything else in the content header dims
-       behind the blur and closes the sidebar on click. The TOP site header
-       gets the same treatment when Compact Mode is OFF. Applied only while
-       the overlay sidebar is open so the desktop-sticky results header
-       retains its sticky stacking context while browsing. */
-    body.overlayed-sidebar .app-container:not(.sidebar-collapsed) .results-header {
+    /* Alternate Layout: start the dim/blur backdrop below the top header bar
+       so the exposed translucent header stays crisp, keeps its own frosted
+       glass (no double blur), and remains clickable while aside.filters
+       (z-index: 502) cleanly overlays its left/right side. */
+    body.overlayed-sidebar.compact-header:not(.legacy-layout) .sidebar-overlay-backdrop:has(~ .app-container:not(.sidebar-collapsed)) {
+        top: 62px;
+    }
+
+    body.overlayed-sidebar:not(.compact-header):not(.legacy-layout) .sidebar-overlay-backdrop:has(~ .app-container:not(.sidebar-collapsed)) {
+        top: 124px;
+    }
+
+    body.overlayed-sidebar.legacy-layout .app-container:not(.sidebar-collapsed) .results-header {
         position: relative;
         z-index: auto !important;
         backdrop-filter: none !important;
@@ -7029,7 +7202,8 @@ body:not(.legacy-layout) #oleBrandBadge {
 
 /* Ordered cover loader: pending covers keep a quiet placeholder surface
    until the sequencer assigns their src in reading order. */
-img.cover-pending {
+img.cover-pending,
+img.cover-loading {
     display: block;
     width: 100%;
     height: 100%;
